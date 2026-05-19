@@ -1612,109 +1612,136 @@ function renderAll(){
 ====================================================== */
 function calcRisk(c){
   const today=new Date();
+  today.setHours(0,0,0,0);
   const lastContact=c.lastContacted?new Date(c.lastContacted):null;
+  if(lastContact)lastContact.setHours(0,0,0,0);
   const doj=c.doj?new Date(c.doj):null;
+  if(doj)doj.setHours(0,0,0,0);
   const notes=(c.notes||'').toLowerCase();
   const fup=c.followup||null;
 
-  let riskScore=20;
+  // Terminal stages — fixed return
+  if(c.stage==='Joined'){
+    return{riskScore:0,riskLevel:'Low',joinProb:100,escalation:'Normal',
+      mood:'🎉 Joined',recruiterGap:'—',
+      action:{label:'✅ Candidate has joined',priority:3},
+      reasons:['Candidate has successfully joined'],
+      changes:[{text:'Candidate has joined the organisation',type:'normal'}],
+      hasFollowup:!!fup};
+  }
+  if(c.stage==='Offer Dropped'){
+    return{riskScore:99,riskLevel:'High',joinProb:0,escalation:'Critical',
+      mood:'❌ Withdrawn',recruiterGap:'—',
+      action:{label:'🚨 Offer dropped — review required',priority:1},
+      reasons:['Candidate has dropped the offer'],
+      changes:[{text:'Candidate withdrew from the offer',type:'danger'}],
+      hasFollowup:!!fup};
+  }
+
+  let riskScore=0;
   let reasons=[];
   let changes=[];
 
-  // Inactivity
+  // DOJ proximity (needed for inactivity urgency multiplier)
+  const daysLeft=doj?Math.floor((doj-today)/(1000*60*60*24)):null;
+
+  // Inactivity — scaled by DOJ urgency
   if(lastContact){
-    const days=Math.floor((today-lastContact)/(1000*60*60*24));
-    if(days>=7){riskScore+=40;reasons.push(`No contact for ${days} days`);changes.push({text:`Recruiter gap escalated to ${days} days`,type:'danger'})}
-    else if(days>=4){riskScore+=25;reasons.push(`No contact for ${days} days`);changes.push({text:`Follow-up gap: ${days} days (threshold: 3)`,type:'warn'})}
-    else if(days>=2){riskScore+=10;reasons.push(`${days} days since last contact`)}
+    const daysSince=Math.floor((today-lastContact)/(1000*60*60*24));
+    const urgency=(daysLeft!==null&&daysLeft<=7)?1.8:(daysLeft!==null&&daysLeft<=14)?1.4:1;
+    if(daysSince===0){riskScore-=5;changes.push({text:'Contacted today — recruiter actively engaged',type:'normal'});}
+    else if(daysSince===1){riskScore+=5;}
+    else if(daysSince<=3){riskScore+=Math.round(10*urgency);reasons.push(`${daysSince} days since last contact`);}
+    else if(daysSince<=7){riskScore+=Math.round(22*urgency);reasons.push(`No contact for ${daysSince} days`);changes.push({text:`Recruiter gap: ${daysSince} days`,type:'warn'});}
+    else{riskScore+=Math.round(40*urgency);reasons.push(`No contact for ${daysSince} days`);changes.push({text:`Recruiter gap critical: ${daysSince} days`,type:'danger'});}
   } else {
-    riskScore+=30; reasons.push('No contact date recorded');
+    if(daysLeft!==null&&daysLeft<=7){riskScore+=20;reasons.push('No contact date — DOJ approaching');}
+    else{riskScore+=8;}
   }
 
   // Stage risk
-  if(c.stage==='Offer Released'){riskScore+=20;reasons.push('Offer released — awaiting candidate response');changes.push({text:'Offer Released — no acceptance yet, follow-up required',type:'warn'})}
-  if(c.stage==='Offer Follow-up'){riskScore+=15;reasons.push('Offer follow-up pending');changes.push({text:'Candidate in offer follow-up — engagement risk',type:'warn'})}
-  if(c.stage==='Documents Pending'){riskScore+=18;reasons.push('Documents not submitted');changes.push({text:'Documents pending — joining at risk',type:'danger'})}
-  if(c.stage==='Offer Dropped'){riskScore+=60;reasons.push('Offer dropped');changes.push({text:'Candidate has dropped the offer',type:'danger'})}
-  if(c.stage==='DOJ Confirmation'){riskScore+=10;reasons.push('DOJ confirmation pending')}
+  if(c.stage==='Offer Released'){riskScore+=15;reasons.push('Offer released — awaiting acceptance');changes.push({text:'Offer Released — no acceptance yet',type:'warn'});}
+  if(c.stage==='Offer Follow-up'){riskScore+=12;reasons.push('Offer follow-up in progress');changes.push({text:'Candidate in follow-up stage',type:'warn'});}
+  if(c.stage==='Documents Pending'){riskScore+=15;reasons.push('Documents not submitted');changes.push({text:'Documents pending',type:'danger'});}
+  if(c.stage==='DOJ Confirmation'){riskScore+=8;reasons.push('DOJ confirmation pending');}
+  if(c.stage==='Offer Accepted'){riskScore-=10;changes.push({text:'Offer accepted — strong joining signal',type:'normal'});}
 
-  // DOJ proximity
-  if(doj){
-    const daysLeft=Math.floor((doj-today)/(1000*60*60*24));
-    if(daysLeft>=0&&daysLeft<=5){riskScore+=35;reasons.push(`DOJ in ${daysLeft} day${daysLeft!==1?'s':''}`);changes.push({text:`DOJ critically close: ${daysLeft} day${daysLeft!==1?'s':''}`,type:'danger'})}
-    else if(daysLeft<=14&&daysLeft>5){riskScore+=20;reasons.push(`DOJ in ${daysLeft} days`);changes.push({text:`DOJ approaching in ${daysLeft} days`,type:'warn'})}
+  // DOJ proximity — ONLY adds risk if no positive signals
+  if(daysLeft!==null){
+    if(daysLeft<0){riskScore+=30;reasons.push('DOJ has passed — not yet joined');changes.push({text:'Joining date has passed',type:'danger'});}
+    else if(daysLeft===0){riskScore+=8;changes.push({text:'DOJ is today',type:'warn'});}
+    else if(daysLeft<=3){riskScore+=5;changes.push({text:`DOJ in ${daysLeft} day${daysLeft!==1?'s':''} — final confirmation needed`,type:'warn'});}
+    else if(daysLeft<=7){riskScore+=3;changes.push({text:`DOJ in ${daysLeft} days — on track`,type:'normal'});}
   }
 
-  // Notes signals
-  const riskKeywords=[
-    {k:'another offer',v:40,r:'Candidate mentioned another offer'},
-    {k:'counter offer',v:38,r:'Counter offer discussion active'},
-    {k:'hesitant',v:25,r:'Candidate showing hesitation'},
-    {k:'unsure',v:22,r:'Candidate unsure about joining'},
-    {k:'needs time',v:18,r:'Candidate requesting more time'},
-    {k:'delayed response',v:20,r:'Delayed response pattern noted'},
-    {k:'notice period',v:12,r:'Long notice period concern'},
-    {k:'relocation',v:15,r:'Relocation concern flagged'},
+  // Notes risk signals
+  const riskKW=[
+    {k:'another offer',v:35,r:'Candidate mentioned another offer'},
+    {k:'counter offer',v:32,r:'Counter offer discussion active'},
+    {k:'hesitant',v:20,r:'Candidate showing hesitation'},
+    {k:'unsure',v:18,r:'Candidate unsure about joining'},
+    {k:'needs time',v:15,r:'Candidate requesting more time'},
+    {k:'delayed response',v:15,r:'Delayed response pattern noted'},
+    {k:'not picking',v:20,r:'Candidate not picking calls'},
+    {k:'notice period',v:10,r:'Notice period concern'},
+    {k:'relocation',v:12,r:'Relocation concern flagged'},
   ];
-  riskKeywords.forEach(kw=>{
-    if(notes.includes(kw.k)){riskScore+=kw.v;reasons.push(kw.r);changes.push({text:`AI detected: "${kw.k}" in notes`,type:'danger'})}
-  });
+  const positiveKW=[
+    {k:'confirmed',v:-12},{k:'excited',v:-10},{k:'happy',v:-8},
+    {k:'ready',v:-10},{k:'accepted',v:-12},{k:'no issues',v:-10},
+    {k:'positive',v:-8},{k:'great',v:-6},{k:'joining',v:-8},
+  ];
+  riskKW.forEach(kw=>{if(notes.includes(kw.k)){riskScore+=kw.v;reasons.push(kw.r);changes.push({text:`AI detected: "${kw.k}" in notes`,type:'danger'});}});
+  positiveKW.forEach(kw=>{if(notes.includes(kw.k))riskScore+=kw.v;});
 
-  // ── QUESTIONNAIRE SIGNALS (from follow-up form) ──
+  // Questionnaire signals
   if(fup){
-    const questDelta=calcQuestRiskDelta(fup);
-    if(questDelta>0)riskScore+=questDelta;
-    // Specific signal reasons
-    if(fup.counter_offer==='Yes'){reasons.push('Counter offer expected (recruiter confirmed)');changes.push({text:'Recruiter confirmed counter offer is expected',type:'danger'})}
-    if(fup.counter_offer==='May Be'){reasons.push('Counter offer possible');changes.push({text:'Counter offer flagged as possible by recruiter',type:'warn'})}
-    if(fup.competing_offers==='Yes'){reasons.push('Active competing offers confirmed');changes.push({text:'Candidate has confirmed competing offers',type:'danger'})}
-    if(fup.response_speed==='Slow'){reasons.push('Slow response speed (recruiter observation)');changes.push({text:'Recruiter marked response speed as Slow',type:'warn'})}
-    if(fup.enthusiasm==='Low'){reasons.push('Low enthusiasm observed by recruiter');changes.push({text:'Enthusiasm dropped — Low (recruiter assessment)',type:'danger'})}
-    if(fup.enthusiasm==='Medium'){changes.push({text:'Enthusiasm rated Medium by recruiter',type:'warn'})}
-    if(fup.relocation_concern==='Yes'){reasons.push('Relocation is a confirmed concern');changes.push({text:'Relocation concern confirmed by recruiter',type:'warn'})}
-    if(fup.docs_status==='Pending'){reasons.push('Documents not yet submitted');changes.push({text:'Documentation status: Pending — action required',type:'danger'})}
-    if(fup.docs_status==='Partial'){reasons.push('Documents partially submitted');changes.push({text:'Documentation status: Partial',type:'warn'})}
-    if(fup.joining_confidence==='Weak'){reasons.push('Recruiter confidence in joining: Weak');changes.push({text:'Recruiter joining confidence: Weak — escalate',type:'danger'})}
-    if(fup.joining_confidence==='Moderate'){changes.push({text:'Recruiter joining confidence: Moderate',type:'warn'})}
-    if(fup.joining_confidence==='Strong'){changes.push({text:'Recruiter confidence is Strong — positive signal',type:'normal'})}
-    if(fup.enthusiasm==='High'){changes.push({text:'High enthusiasm observed — positive indicator',type:'normal'})}
-    if(fup.recruiter_notes&&fup.recruiter_notes.length>10){changes.push({text:`Recruiter note: "${fup.recruiter_notes.slice(0,80)}${fup.recruiter_notes.length>80?'…':''}"`,type:'normal'})}
+    if(fup.counter_offer==='Yes'){riskScore+=28;reasons.push('Counter offer expected');changes.push({text:'Counter offer expected — high risk',type:'danger'});}
+    if(fup.counter_offer==='Maybe'||fup.counter_offer==='May Be'){riskScore+=14;reasons.push('Counter offer possible');changes.push({text:'Counter offer possible',type:'warn'});}
+    if(fup.competing_offers==='Yes'){riskScore+=22;reasons.push('Active competing offers');changes.push({text:'Competing offers confirmed',type:'danger'});}
+    if(fup.response_speed==='Slow'){riskScore+=16;reasons.push('Slow response speed');changes.push({text:'Response speed: Slow',type:'warn'});}
+    if(fup.enthusiasm==='Low'){riskScore+=22;reasons.push('Low enthusiasm');changes.push({text:'Enthusiasm: Low — risk of drop',type:'danger'});}
+    if(fup.relocation_concern==='Yes'){riskScore+=14;reasons.push('Relocation concern confirmed');changes.push({text:'Relocation concern flagged',type:'warn'});}
+    if(fup.docs_status==='Pending'){riskScore+=12;reasons.push('Documents not submitted');changes.push({text:'Documentation: Pending',type:'danger'});}
+    if(fup.docs_status==='Partial'){riskScore+=6;changes.push({text:'Documentation: Partial',type:'warn'});}
+    if(fup.joining_confidence==='Weak'){riskScore+=25;reasons.push('Recruiter confidence: Weak');changes.push({text:'Recruiter confidence: Weak',type:'danger'});}
+    if(fup.joining_confidence==='Moderate'){riskScore+=8;changes.push({text:'Recruiter confidence: Moderate',type:'warn'});}
+    // Positive reductions
+    if(fup.joining_confidence==='Strong'){riskScore-=18;changes.push({text:'Recruiter confidence: Strong',type:'normal'});}
+    if(fup.enthusiasm==='High'){riskScore-=15;changes.push({text:'Enthusiasm: High — engaged candidate',type:'normal'});}
+    if(fup.response_speed==='Fast'){riskScore-=10;changes.push({text:'Response speed: Fast',type:'normal'});}
+    if(fup.docs_status==='Complete'){riskScore-=12;changes.push({text:'Documents: Complete',type:'normal'});}
+    if(fup.counter_offer==='No'){riskScore-=10;changes.push({text:'No counter offer expected',type:'normal'});}
+    if(fup.competing_offers==='No'){riskScore-=8;changes.push({text:'No competing offers',type:'normal'});}
+    if(fup.relocation_concern==='No'){riskScore-=6;changes.push({text:'No relocation concern',type:'normal'});}
+    if(fup.recruiter_notes&&fup.recruiter_notes.length>5)changes.push({text:`Recruiter note: "${fup.recruiter_notes.slice(0,80)}${fup.recruiter_notes.length>80?'…':''}"`  ,type:'normal'});
   }
 
-  riskScore=Math.min(99,riskScore);
-  const riskLevel=riskScore>=60?'High':riskScore>=35?'Medium':'Low';
-  const joinProb=Math.max(5,100-riskScore);
-  const escalation=riskScore>=70?'Critical':riskScore>=45?'Watch':'Normal';
+  riskScore=Math.max(0,Math.min(99,riskScore));
+  const riskLevel=riskScore>=60?'High':riskScore>=30?'Medium':'Low';
+  const joinProb=Math.max(1,Math.min(99,100-riskScore));
+  const escalation=riskScore>=70?'Critical':riskScore>=40?'Watch':'Normal';
 
-  // Mood — enhanced with questionnaire
+  // Mood
   let mood='😐 Neutral';
   if(fup){
     if(fup.enthusiasm==='High'&&fup.joining_confidence==='Strong')mood='😊 Positive';
     else if(fup.enthusiasm==='Low'||fup.joining_confidence==='Weak')mood='😟 At Risk';
     else if(fup.counter_offer==='Yes'||fup.competing_offers==='Yes')mood='😟 At Risk';
     else if(fup.enthusiasm==='Medium'||fup.joining_confidence==='Moderate')mood='😐 Uncertain';
+    else if(riskScore<20)mood='😊 Positive';
   } else {
-    const moodMap=[
-      {kws:['excited','great','confirmed','happy'],mood:'😊 Positive'},
-      {kws:['hesitant','unsure','needs time'],mood:'😐 Uncertain'},
-      {kws:['another offer','counter','delayed'],mood:'😟 At Risk'},
-      {kws:['dropped','rejected','declined'],mood:'❌ Withdrawn'},
-    ];
-    for(const m of moodMap){if(m.kws.some(k=>notes.includes(k))){mood=m.mood;break;}}
+    if(notes.includes('excited')||notes.includes('happy')||notes.includes('confirmed'))mood='😊 Positive';
+    else if(notes.includes('hesitant')||notes.includes('unsure'))mood='😐 Uncertain';
+    else if(notes.includes('another offer')||notes.includes('counter'))mood='😟 At Risk';
+    else if(riskScore<20)mood='😊 Positive';
   }
 
-  const lastContact2=lastContact?Math.floor((today-lastContact)/(1000*60*60*24)):null;
-  const recruiterGap=lastContact2!==null?`${lastContact2}d ago`:'Never';
-
-  const actionMap={
-    'Critical':{label:'🚨 Escalate Immediately',priority:1},
-    'Watch':{label:'📞 Call Today',priority:2},
-    'Normal':{label:'✉️ Send Follow-up',priority:3}
-  };
+  const daysSinceContact=lastContact?Math.floor((today-lastContact)/(1000*60*60*24)):null;
+  const recruiterGap=daysSinceContact!==null?`${daysSinceContact}d ago`:'Never';
+  const actionMap={'Critical':{label:'🚨 Escalate Immediately',priority:1},'Watch':{label:'📞 Call Today',priority:2},'Normal':{label:'✉️ Send Follow-up',priority:3}};
   const action=actionMap[escalation];
-
-  if(changes.length===0)changes.push({text:'Candidate tracking active — no significant behavioral changes detected',type:'normal'});
-
+  if(changes.length===0)changes.push({text:'No significant risk signals — candidate on track',type:'normal'});
   return{riskScore,riskLevel,joinProb,escalation,mood,recruiterGap,action,reasons,changes,hasFollowup:!!fup};
 }
 
