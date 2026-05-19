@@ -644,38 +644,20 @@ textarea.edit-input{resize:vertical;min-height:65px}
     <div id="otp-step1">
       <div class="form-group">
         <label>Work Email</label>
-        <input type="email" id="login-email" class="form-input" placeholder="you@yourcompany.com" autocomplete="email" onkeydown="if(event.key==='Enter')sendOTP()">
-      </div>
-      <div id="login-error" style="display:none;padding:.6rem .85rem;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:.78rem;color:#dc2626;margin-bottom:.75rem"></div>
-      <button class="btn-login" id="otp-send-btn" onclick="sendOTP()">
-        📧 &nbsp;Send OTP Code
-      </button>
-      <div style="text-align:center;margin-top:.85rem;font-size:.75rem;color:#6b7280">
-        A 6-digit code will be sent to your work email
-      </div>
-    </div>
-
-    <!-- STEP 2: OTP input -->
-    <div id="otp-step2" style="display:none">
-      <div style="text-align:center;margin-bottom:1.25rem">
-        <div style="font-size:2rem;margin-bottom:.4rem">📬</div>
-        <div style="font-size:.9rem;font-weight:600;color:#111827">Check your email</div>
-        <div style="font-size:.78rem;color:#6b7280;margin-top:.25rem">We sent a 6-digit code to<br><strong id="otp-email-display" style="color:#2563eb"></strong></div>
+        <input type="email" id="login-email" class="form-input" placeholder="you@yourcompany.com" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()">
       </div>
       <div class="form-group">
-        <label>6-Digit OTP Code</label>
-        <input type="text" id="otp-code" class="form-input" placeholder="000000" maxlength="6" style="text-align:center;font-size:1.4rem;letter-spacing:.3em;font-family:'JetBrains Mono',monospace" onkeydown="if(event.key==='Enter')verifyOTP()">
+        <label>Password</label>
+        <input type="password" id="login-password" class="form-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
       </div>
-      <div id="otp-error" style="display:none;padding:.6rem .85rem;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:.78rem;color:#dc2626;margin-bottom:.75rem"></div>
-      <button class="btn-login" id="otp-verify-btn" onclick="verifyOTP()">
-        ✅ &nbsp;Verify & Sign In
+      <div id="login-error" style="display:none;padding:.6rem .85rem;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:.78rem;color:#dc2626;margin-bottom:.75rem"></div>
+      <button class="btn-login" id="otp-send-btn" onclick="doLogin()">
+        🔐 &nbsp;Sign In
       </button>
-      <div style="text-align:center;margin-top:.85rem">
-        <a href="#" onclick="backToEmail()" style="font-size:.75rem;color:#2563eb;text-decoration:none">← Use a different email</a>
-        &nbsp;·&nbsp;
-        <a href="#" onclick="sendOTP(true)" style="font-size:.75rem;color:#2563eb;text-decoration:none">Resend code</a>
-      </div>
     </div>
+
+    <!-- STEP 2: OTP input (hidden) -->
+    <div id="otp-step2" style="display:none"></div>
   </div>
 </div>
 
@@ -1432,102 +1414,29 @@ function getSupabase(){
    AUTH FUNCTIONS
 ====================================================== */
 /* ======================================================
-   OTP AUTH FUNCTIONS
+   AUTH FUNCTIONS
 ====================================================== */
-async function sendOTP(resend=false){
-  const email = document.getElementById('login-email').value.trim();
-  const errEl = document.getElementById('login-error');
-  const btn   = document.getElementById('otp-send-btn');
-
-  if(!email){ showLoginError('Please enter your work email.'); return; }
-
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-password').value;
+  const errEl=document.getElementById('login-error');
+  const btn=document.getElementById('otp-send-btn');
+  if(!email||!pass){showLoginError('Please enter your email and password.');return;}
   errEl.style.display='none';
-  btn.textContent='⏳ Sending…';
+  btn.textContent='⏳ Signing in…';
   btn.disabled=true;
-
-  // Timeout after 8 seconds
-  const timeoutId=setTimeout(()=>{
-    btn.textContent='📧 Send OTP Code';
-    btn.disabled=false;
-    showLoginError('⏳ Request timed out — either the email rate limit is active (wait 1 hour) or there is a connection issue. Please try again shortly.');
-  },8000);
-
-  const { error } = await getSupabase().auth.signInWithOtp({
-    email,
-    options: { shouldCreateUser: false }
-  });
-
-  clearTimeout(timeoutId);
-
-  btn.textContent='📧 Send OTP Code';
+  const {data,error}=await getSupabase().auth.signInWithPassword({email,password:pass});
+  btn.textContent='🔐 Sign In';
   btn.disabled=false;
-
-  if(error){
-    const msg = typeof error === 'string' ? error
-      : error.message || error.msg || JSON.stringify(error);
-    showLoginError(
-      msg.toLowerCase().includes('rate') || msg.toLowerCase().includes('limit')
-        ? '⏳ Too many attempts. Please wait a few minutes and try again.'
-        : msg.toLowerCase().includes('not allowed') || msg.toLowerCase().includes('not found')
-        ? '❌ This email is not registered. Please contact your admin.'
-        : msg || 'Something went wrong. Please try again.'
-    );
-    return;
-  }
-
-  // Show step 2
-  document.getElementById('otp-email-display').textContent = email;
-  document.getElementById('otp-step1').style.display='none';
-  document.getElementById('otp-step2').style.display='block';
-  document.getElementById('otp-code').focus();
-  if(resend) toast('New OTP sent to '+email,'success');
-}
-
-async function verifyOTP(){
-  const email = document.getElementById('login-email').value.trim();
-  const token = document.getElementById('otp-code').value.trim();
-  const errEl = document.getElementById('otp-error');
-  const btn   = document.getElementById('otp-verify-btn');
-
-  if(!token||token.length<6){ errEl.textContent='Please enter the 6-digit code.'; errEl.style.display='block'; return; }
-
-  errEl.style.display='none';
-  btn.textContent='⏳ Verifying…';
-  btn.disabled=true;
-
-  const { data, error } = await getSupabase().auth.verifyOtp({
-    email,
-    token,
-    type: 'email'
-  });
-
-  btn.textContent='✅ Verify & Sign In';
-  btn.disabled=false;
-
-  if(error){
-    errEl.textContent = error.message.includes('expired') || error.message.includes('invalid')
-      ? 'Invalid or expired code. Please request a new one.'
-      : error.message;
-    errEl.style.display='block';
-    return;
-  }
-
-  const meta = data.user.user_metadata || {};
-  currentUser = {
-    id:    data.user.id,
-    email: data.user.email,
-    name:  meta.name || data.user.email.split('@')[0],
-    role:  meta.role || 'recruiter'
+  if(error){showLoginError(error.message);return;}
+  const meta=data.user.user_metadata||{};
+  currentUser={
+    id:data.user.id,
+    email:data.user.email,
+    name:meta.name||data.user.email.split('@')[0],
+    role:meta.role||'recruiter'
   };
-
   showLoadingThenApp();
-}
-
-function backToEmail(){
-  document.getElementById('otp-step2').style.display='none';
-  document.getElementById('otp-step1').style.display='block';
-  document.getElementById('otp-code').value='';
-  document.getElementById('otp-error').style.display='none';
 }
 
 function showLoginError(msg){
@@ -1553,21 +1462,20 @@ async function doLogout(){
   document.getElementById('app').style.display='none';
   document.getElementById('login-page').style.display='flex';
   document.getElementById('login-error').style.display='none';
-  document.getElementById('otp-code') && (document.getElementById('otp-code').value='');
-  backToEmail();
+  document.getElementById('login-password').value='';
   toast('Signed out successfully.','info');
 }
 
 async function autoLogin(){
-  const { data } = await getSupabase().auth.getSession();
+  const {data}=await getSupabase().auth.getSession();
   if(data.session){
-    const user = data.session.user;
-    const meta = user.user_metadata || {};
-    currentUser = {
-      id:    user.id,
-      email: user.email,
-      name:  meta.name || user.email.split('@')[0],
-      role:  meta.role || 'recruiter'
+    const user=data.session.user;
+    const meta=user.user_metadata||{};
+    currentUser={
+      id:user.id,
+      email:user.email,
+      name:meta.name||user.email.split('@')[0],
+      role:meta.role||'recruiter'
     };
     document.getElementById('loading-screen').style.display='none';
     initApp();
