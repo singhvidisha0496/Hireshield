@@ -639,29 +639,42 @@ textarea.edit-input{resize:vertical;min-height:65px}
       <h1>HireShield AI</h1>
       <p>Protecting Hiring Outcomes<br>Before Risk Becomes Escalation.</p>
     </div>
-    <div class="form-group">
-      <label>Work Email</label>
-      <input type="email" id="login-email" class="form-input" placeholder="you@yourcompany.com" autocomplete="email">
-    </div>
-    <div class="form-group">
-      <label>Password</label>
-      <input type="password" id="login-password" class="form-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
-    </div>
-    <div id="login-error" style="display:none;padding:.6rem .85rem;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:.78rem;color:#dc2626;margin-bottom:.75rem"></div>
-    <button class="btn-login" id="login-btn" onclick="doLogin()">
-      🔐 &nbsp;Sign In
-    </button>
-    <div style="text-align:center;margin-top:.9rem">
-      <a href="#" onclick="showForgotPassword()" style="font-size:.76rem;color:#2563eb;text-decoration:none">Forgot password?</a>
-    </div>
-    <div id="reset-form" style="display:none;margin-top:.85rem;padding:.9rem;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px">
-      <div style="font-size:.78rem;color:#0369a1;font-weight:600;margin-bottom:.5rem">🔑 Reset Password</div>
-      <input type="email" id="reset-email" class="form-input" placeholder="your@email.com" style="margin-bottom:.5rem">
-      <div style="display:flex;gap:.4rem">
-        <button class="btn btn-primary btn-sm" onclick="sendPasswordReset()" style="flex:1">Send Reset Email</button>
-        <button class="btn btn-secondary btn-sm" onclick="hideForgotPassword()">Cancel</button>
+
+    <!-- STEP 1: Email input -->
+    <div id="otp-step1">
+      <div class="form-group">
+        <label>Work Email</label>
+        <input type="email" id="login-email" class="form-input" placeholder="you@yourcompany.com" autocomplete="email" onkeydown="if(event.key==='Enter')sendOTP()">
       </div>
-      <div id="reset-msg" style="display:none;font-size:.75rem;margin-top:.5rem;color:#16a34a"></div>
+      <div id="login-error" style="display:none;padding:.6rem .85rem;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:.78rem;color:#dc2626;margin-bottom:.75rem"></div>
+      <button class="btn-login" id="otp-send-btn" onclick="sendOTP()">
+        📧 &nbsp;Send OTP Code
+      </button>
+      <div style="text-align:center;margin-top:.85rem;font-size:.75rem;color:#6b7280">
+        A 6-digit code will be sent to your work email
+      </div>
+    </div>
+
+    <!-- STEP 2: OTP input -->
+    <div id="otp-step2" style="display:none">
+      <div style="text-align:center;margin-bottom:1.25rem">
+        <div style="font-size:2rem;margin-bottom:.4rem">📬</div>
+        <div style="font-size:.9rem;font-weight:600;color:#111827">Check your email</div>
+        <div style="font-size:.78rem;color:#6b7280;margin-top:.25rem">We sent a 6-digit code to<br><strong id="otp-email-display" style="color:#2563eb"></strong></div>
+      </div>
+      <div class="form-group">
+        <label>6-Digit OTP Code</label>
+        <input type="text" id="otp-code" class="form-input" placeholder="000000" maxlength="6" style="text-align:center;font-size:1.4rem;letter-spacing:.3em;font-family:'JetBrains Mono',monospace" onkeydown="if(event.key==='Enter')verifyOTP()">
+      </div>
+      <div id="otp-error" style="display:none;padding:.6rem .85rem;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:.78rem;color:#dc2626;margin-bottom:.75rem"></div>
+      <button class="btn-login" id="otp-verify-btn" onclick="verifyOTP()">
+        ✅ &nbsp;Verify & Sign In
+      </button>
+      <div style="text-align:center;margin-top:.85rem">
+        <a href="#" onclick="backToEmail()" style="font-size:.75rem;color:#2563eb;text-decoration:none">← Use a different email</a>
+        &nbsp;·&nbsp;
+        <a href="#" onclick="sendOTP(true)" style="font-size:.75rem;color:#2563eb;text-decoration:none">Resend code</a>
+      </div>
     </div>
   </div>
 </div>
@@ -1404,7 +1417,7 @@ function toast(msg,type='info',duration=3200){
 /* ======================================================
    SUPABASE CONFIG — paste your values here
 ====================================================== */
-const SUPABASE_URL = 'https://mvzoeqvpxomcwniugfql.supabase.co/';       // e.g. https://xyzxyz.supabase.co
+const SUPABASE_URL = 'https://mvzoeqvpxomcwniugfql.supabase.co';       // e.g. https://xyzxyz.supabase.co
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12em9lcXZweG9tY3duaXVnZnFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDMxNjcsImV4cCI6MjA5NDY3OTE2N30.-mUxwu4fQbiEmu3d84FIDzpuF5b2J6AlgQADx1X_Ra4'; // long key from Settings → API
 
 let _supabase = null;
@@ -1418,61 +1431,94 @@ function getSupabase(){
 /* ======================================================
    AUTH FUNCTIONS
 ====================================================== */
-async function doLogin(){
+/* ======================================================
+   OTP AUTH FUNCTIONS
+====================================================== */
+async function sendOTP(resend=false){
   const email = document.getElementById('login-email').value.trim();
-  const pass  = document.getElementById('login-password').value;
   const errEl = document.getElementById('login-error');
-  const btn   = document.getElementById('login-btn');
+  const btn   = document.getElementById('otp-send-btn');
 
-  if(!email || !pass){ showLoginError('Please enter your email and password.'); return; }
+  if(!email){ showLoginError('Please enter your work email.'); return; }
 
-  btn.textContent = '⏳ Signing in…';
-  btn.disabled = true;
-  errEl.style.display = 'none';
+  errEl.style.display='none';
+  btn.textContent='⏳ Sending…';
+  btn.disabled=true;
 
-  const { data, error } = await getSupabase().auth.signInWithPassword({ email, password: pass });
+  const { error } = await getSupabase().auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: false }
+  });
 
-  btn.textContent = '🔐 Sign In';
-  btn.disabled = false;
+  btn.textContent='📧 Send OTP Code';
+  btn.disabled=false;
 
-  if(error){ showLoginError(error.message); return; }
+  if(error){
+    showLoginError(error.message==='Signups not allowed for otp'
+      ? 'This email is not registered. Please contact your admin.'
+      : error.message);
+    return;
+  }
+
+  // Show step 2
+  document.getElementById('otp-email-display').textContent = email;
+  document.getElementById('otp-step1').style.display='none';
+  document.getElementById('otp-step2').style.display='block';
+  document.getElementById('otp-code').focus();
+  if(resend) toast('New OTP sent to '+email,'success');
+}
+
+async function verifyOTP(){
+  const email = document.getElementById('login-email').value.trim();
+  const token = document.getElementById('otp-code').value.trim();
+  const errEl = document.getElementById('otp-error');
+  const btn   = document.getElementById('otp-verify-btn');
+
+  if(!token||token.length<6){ errEl.textContent='Please enter the 6-digit code.'; errEl.style.display='block'; return; }
+
+  errEl.style.display='none';
+  btn.textContent='⏳ Verifying…';
+  btn.disabled=true;
+
+  const { data, error } = await getSupabase().auth.verifyOtp({
+    email,
+    token,
+    type: 'email'
+  });
+
+  btn.textContent='✅ Verify & Sign In';
+  btn.disabled=false;
+
+  if(error){
+    errEl.textContent = error.message.includes('expired') || error.message.includes('invalid')
+      ? 'Invalid or expired code. Please request a new one.'
+      : error.message;
+    errEl.style.display='block';
+    return;
+  }
 
   const meta = data.user.user_metadata || {};
   currentUser = {
     id:    data.user.id,
     email: data.user.email,
-    name:  meta.name  || data.user.email.split('@')[0],
-    role:  meta.role  || 'recruiter'
+    name:  meta.name || data.user.email.split('@')[0],
+    role:  meta.role || 'recruiter'
   };
 
   showLoadingThenApp();
 }
 
+function backToEmail(){
+  document.getElementById('otp-step2').style.display='none';
+  document.getElementById('otp-step1').style.display='block';
+  document.getElementById('otp-code').value='';
+  document.getElementById('otp-error').style.display='none';
+}
+
 function showLoginError(msg){
-  const el = document.getElementById('login-error');
-  el.textContent = msg;
-  el.style.display = 'block';
-}
-
-function showForgotPassword(){
-  document.getElementById('reset-form').style.display = 'block';
-  const em = document.getElementById('login-email').value;
-  if(em) document.getElementById('reset-email').value = em;
-}
-function hideForgotPassword(){
-  document.getElementById('reset-form').style.display = 'none';
-}
-
-async function sendPasswordReset(){
-  const email = document.getElementById('reset-email').value.trim();
-  if(!email){ toast('Enter your email first.','error'); return; }
-  const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.href
-  });
-  const msg = document.getElementById('reset-msg');
-  if(error){ msg.style.color='#dc2626'; msg.textContent='Error: '+error.message; }
-  else { msg.style.color='#16a34a'; msg.textContent='✅ Reset email sent! Check your inbox.'; }
-  msg.style.display = 'block';
+  const el=document.getElementById('login-error');
+  el.textContent=msg;
+  el.style.display='block';
 }
 
 function showLoadingThenApp(){
@@ -1492,12 +1538,12 @@ async function doLogout(){
   document.getElementById('app').style.display='none';
   document.getElementById('login-page').style.display='flex';
   document.getElementById('login-error').style.display='none';
-  document.getElementById('login-password').value='';
+  document.getElementById('otp-code') && (document.getElementById('otp-code').value='');
+  backToEmail();
   toast('Signed out successfully.','info');
 }
 
 async function autoLogin(){
-  // Check for active Supabase session (persists across page refresh)
   const { data } = await getSupabase().auth.getSession();
   if(data.session){
     const user = data.session.user;
@@ -1505,8 +1551,8 @@ async function autoLogin(){
     currentUser = {
       id:    user.id,
       email: user.email,
-      name:  meta.name  || user.email.split('@')[0],
-      role:  meta.role  || 'recruiter'
+      name:  meta.name || user.email.split('@')[0],
+      role:  meta.role || 'recruiter'
     };
     document.getElementById('loading-screen').style.display='none';
     initApp();
@@ -1514,47 +1560,9 @@ async function autoLogin(){
     document.getElementById('loading-screen').style.display='none';
     document.getElementById('login-page').style.display='flex';
   }
-
-  // Listen for auth state changes
-  getSupabase().auth.onAuthStateChange((event, session) => {
-    if(event === 'PASSWORD_RECOVERY'){
-      // Hide login, show reset form
-      document.getElementById('loading-screen').style.display='none';
-      document.getElementById('login-page').style.display='none';
-      const overlay=document.getElementById('pw-reset-overlay');
-      overlay.style.display='flex';
-    }
-  });
 }
 
-async function submitNewPassword(){
-  const newPass=document.getElementById('new-password').value;
-  const confirm=document.getElementById('confirm-password').value;
-  const errEl=document.getElementById('pw-reset-error');
-  const btn=document.getElementById('pw-reset-btn');
 
-  errEl.style.display='none';
-  if(!newPass||newPass.length<6){errEl.textContent='Password must be at least 6 characters.';errEl.style.display='block';return;}
-  if(newPass!==confirm){errEl.textContent='Passwords do not match.';errEl.style.display='block';return;}
-
-  btn.textContent='⏳ Updating…';
-  btn.disabled=true;
-
-  const {error}=await getSupabase().auth.updateUser({password:newPass});
-
-  btn.textContent='✅ Update Password';
-  btn.disabled=false;
-
-  if(error){errEl.textContent=error.message;errEl.style.display='block';return;}
-
-  // Success — sign out and redirect to login
-  await getSupabase().auth.signOut();
-  document.getElementById('pw-reset-overlay').style.display='none';
-  document.getElementById('login-page').style.display='flex';
-  document.getElementById('new-password').value='';
-  document.getElementById('confirm-password').value='';
-  toast('Password updated! Please sign in with your new password.','success');
-}
 
 
 /* ======================================================
