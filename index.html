@@ -193,7 +193,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg-deep);color:var(--text
 .form-field label{font-size:.67rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;font-weight:600}
 .field-input{background:#ffffff;border:1px solid var(--border);border-radius:7px;padding:.5rem .7rem;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.82rem;outline:none;transition:all .18s;width:100%}
 .field-input:focus{border-color:var(--accent);background:rgba(79,142,247,.05);box-shadow:0 0 0 2px rgba(200,146,26,.08)}
-.field-input option{background:#1a1208}
+.field-input option{background:#ffffff;color:#111827}
 textarea.field-input{resize:vertical;min-height:65px}
 .form-actions{grid-column:1/-1;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
 
@@ -607,6 +607,27 @@ textarea.edit-input{resize:vertical;min-height:65px}
   <div class="loader-ring"></div>
   <div class="loader-logo">HireShield AI</div>
   <div class="loader-text">Initializing Intelligence Engine…</div>
+</div>
+
+<!-- PASSWORD RESET OVERLAY -->
+<div id="pw-reset-overlay" style="display:none;position:fixed;inset:0;z-index:200;background:#f1f5f9;display:none;align-items:center;justify-content:center">
+  <div style="background:#fff;border:1px solid #d1d5db;border-radius:16px;padding:2rem;width:min(400px,92vw);box-shadow:0 8px 32px rgba(0,0,0,.1)">
+    <div style="text-align:center;margin-bottom:1.5rem">
+      <div style="font-size:2rem;margin-bottom:.5rem">🔑</div>
+      <div style="font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:700;color:#111827">Set New Password</div>
+      <div style="font-size:.8rem;color:#6b7280;margin-top:.25rem">Enter your new password below</div>
+    </div>
+    <div style="margin-bottom:.85rem">
+      <label style="display:block;font-size:.72rem;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">New Password</label>
+      <input type="password" id="new-password" class="form-input" placeholder="Min 6 characters" style="width:100%">
+    </div>
+    <div style="margin-bottom:1rem">
+      <label style="display:block;font-size:.72rem;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">Confirm Password</label>
+      <input type="password" id="confirm-password" class="form-input" placeholder="Repeat password" style="width:100%">
+    </div>
+    <div id="pw-reset-error" style="display:none;padding:.55rem .8rem;background:#fef2f2;border:1px solid #fca5a5;border-radius:7px;font-size:.78rem;color:#dc2626;margin-bottom:.75rem"></div>
+    <button class="btn-login" id="pw-reset-btn" onclick="submitNewPassword()">✅ Update Password</button>
+  </div>
 </div>
 
 <!-- LOGIN PAGE -->
@@ -1383,7 +1404,7 @@ function toast(msg,type='info',duration=3200){
 /* ======================================================
    SUPABASE CONFIG — paste your values here
 ====================================================== */
-const SUPABASE_URL = 'https://mvzoeqvpxomcwniugfql.supabase.co';       // e.g. https://xyzxyz.supabase.co
+const SUPABASE_URL = 'https://mvzoeqvpxomcwniugfql.supabase.co/';       // e.g. https://xyzxyz.supabase.co
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12em9lcXZweG9tY3duaXVnZnFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDMxNjcsImV4cCI6MjA5NDY3OTE2N30.-mUxwu4fQbiEmu3d84FIDzpuF5b2J6AlgQADx1X_Ra4'; // long key from Settings → API
 
 let _supabase = null;
@@ -1494,16 +1515,45 @@ async function autoLogin(){
     document.getElementById('login-page').style.display='flex';
   }
 
-  // Listen for auth state changes (e.g. after password reset redirect)
+  // Listen for auth state changes
   getSupabase().auth.onAuthStateChange((event, session) => {
     if(event === 'PASSWORD_RECOVERY'){
-      const newPass = prompt('Enter your new password:');
-      if(newPass){
-        getSupabase().auth.updateUser({ password: newPass })
-          .then(()=>toast('Password updated! Please sign in.','success'));
-      }
+      // Hide login, show reset form
+      document.getElementById('loading-screen').style.display='none';
+      document.getElementById('login-page').style.display='none';
+      const overlay=document.getElementById('pw-reset-overlay');
+      overlay.style.display='flex';
     }
   });
+}
+
+async function submitNewPassword(){
+  const newPass=document.getElementById('new-password').value;
+  const confirm=document.getElementById('confirm-password').value;
+  const errEl=document.getElementById('pw-reset-error');
+  const btn=document.getElementById('pw-reset-btn');
+
+  errEl.style.display='none';
+  if(!newPass||newPass.length<6){errEl.textContent='Password must be at least 6 characters.';errEl.style.display='block';return;}
+  if(newPass!==confirm){errEl.textContent='Passwords do not match.';errEl.style.display='block';return;}
+
+  btn.textContent='⏳ Updating…';
+  btn.disabled=true;
+
+  const {error}=await getSupabase().auth.updateUser({password:newPass});
+
+  btn.textContent='✅ Update Password';
+  btn.disabled=false;
+
+  if(error){errEl.textContent=error.message;errEl.style.display='block';return;}
+
+  // Success — sign out and redirect to login
+  await getSupabase().auth.signOut();
+  document.getElementById('pw-reset-overlay').style.display='none';
+  document.getElementById('login-page').style.display='flex';
+  document.getElementById('new-password').value='';
+  document.getElementById('confirm-password').value='';
+  toast('Password updated! Please sign in with your new password.','success');
 }
 
 
@@ -2274,16 +2324,7 @@ function openCC(id){
       <div class="msg-box" id="msg-box">${esc(msgs.offer_followup)}</div>
       <div class="msg-actions">
         <button class="btn btn-secondary btn-sm" onclick="copyText('msg-box')">📋 Copy Message</button>
-        <button class="btn btn-primary btn-sm" onclick="openEmailFromCC('followup','${c.id}')">📤 Send as Email</button>
-      </div>
-    </div>
-
-    <div class="cc-section">
-      <div class="cc-section-title">🚨 AI Escalation Email Generator</div>
-      <div class="msg-box" style="min-height:180px;font-family:'JetBrains Mono',monospace;font-size:.75rem;line-height:1.7" id="esc-mail-box">${esc(escalationMail)}</div>
-      <div class="msg-actions">
-        <button class="btn btn-danger btn-sm" onclick="copyText('esc-mail-box')">📋 Copy Email</button>
-        <button class="btn btn-primary btn-sm" onclick="openEmailFromCC('escalation','${c.id}')">🚨 Send Escalation Email</button>
+        <button class="btn btn-primary btn-sm" onclick="openEmailFromCC('offer_followup','${c.id}')">📤 Send Email to Candidate</button>
       </div>
     </div>
   `;
