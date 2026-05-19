@@ -188,7 +188,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg-deep);color:var(--text
 .btn-icon{width:28px;height:28px;padding:0;justify-content:center;border-radius:7px}
 
 /* ─── FORM ELEMENTS ─── */
-.add-form{display:grid;grid-template-columns:repeat(4,1fr);gap:.65rem}
+.add-form{display:grid;grid-template-columns:repeat(3,1fr);gap:.65rem}
 .form-field{display:flex;flex-direction:column;gap:.28rem}
 .form-field label{font-size:.67rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;font-weight:600}
 .field-input{background:#ffffff;border:1px solid var(--border);border-radius:7px;padding:.5rem .7rem;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.82rem;outline:none;transition:all .18s;width:100%}
@@ -773,12 +773,8 @@ textarea.edit-input{resize:vertical;min-height:65px}
               <input type="text" id="f-role" class="field-input" placeholder="e.g. Senior SDE">
             </div>
             <div class="form-field">
-              <label>Recruiter Name</label>
-              <input type="text" id="f-recruiter" class="field-input" placeholder="Recruiter">
-            </div>
-            <div class="form-field">
-              <label>Current Stage</label>
-              <select id="f-stage" class="field-input">
+              <label>Offer Stage</label>
+              <select id="f-stage" class="field-input" style="background:#fff;color:#111827;border:1px solid #d1d5db">
                 <option value="Offer Released">Offer Released</option>
                 <option value="Offer Accepted">Offer Accepted</option>
                 <option value="Offer Follow-up">Offer Follow-up</option>
@@ -795,6 +791,20 @@ textarea.edit-input{resize:vertical;min-height:65px}
             <div class="form-field">
               <label>Joining Date (DOJ)</label>
               <input type="date" id="f-doj" class="field-input">
+            </div>
+            <!-- CTC Section -->
+            <div class="form-field">
+              <label>Current CTC (₹ LPA)</label>
+              <input type="number" id="f-current-ctc" class="field-input" placeholder="e.g. 12.5" step="0.1">
+            </div>
+            <div class="form-field" style="grid-column:span 2">
+              <label>Offered CTC Breakup</label>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem">
+                <input type="number" id="f-fixed" class="field-input" placeholder="Fixed (₹ LPA)" step="0.1">
+                <input type="number" id="f-variable" class="field-input" placeholder="Variable (₹ LPA)" step="0.1">
+                <input type="number" id="f-joining-bonus" class="field-input" placeholder="Joining Bonus (₹)" step="1000">
+                <input type="number" id="f-retention" class="field-input" placeholder="Retention Bonus (₹)" step="1000">
+              </div>
             </div>
             <div class="form-field" style="grid-column:1/-1">
               <label>Candidate Notes / Mood</label>
@@ -941,9 +951,9 @@ textarea.edit-input{resize:vertical;min-height:65px}
                 <th>Candidate</th>
                 <th>Phone</th>
                 <th>Role</th>
-                <th>Recruiter</th>
                 <th>Stage</th>
                 <th>DOJ</th>
+                <th>Offered CTC</th>
                 <th>AI Risk</th>
                 <th>Join %</th>
                 <th>Escalation</th>
@@ -977,7 +987,7 @@ textarea.edit-input{resize:vertical;min-height:65px}
           <table>
             <thead>
               <tr>
-                <th>Candidate</th><th>Phone</th><th>Role</th><th>Recruiter</th><th>Stage</th><th>DOJ</th><th>AI Risk</th><th>Join %</th><th>Escalation</th><th>Actions</th>
+                <th>Candidate</th><th>Phone</th><th>Role</th><th>Stage</th><th>DOJ</th><th>Offered CTC</th><th>AI Risk</th><th>Join %</th><th>Escalation</th><th>Actions</th>
               </tr>
             </thead>
             <tbody id="candidate-tbody-2"></tbody>
@@ -1266,6 +1276,11 @@ textarea.edit-input{resize:vertical;min-height:65px}
         </div>
         <div class="edit-field"><label>Last Contacted</label><input type="date" id="e-last" class="edit-input"></div>
         <div class="edit-field"><label>Joining Date (DOJ)</label><input type="date" id="e-doj" class="edit-input"></div>
+        <div class="edit-field"><label>Current CTC (₹ LPA)</label><input type="number" id="e-current-ctc" class="edit-input" placeholder="e.g. 12.5" step="0.1"></div>
+        <div class="edit-field"><label>Fixed CTC (₹ LPA)</label><input type="number" id="e-fixed" class="edit-input" placeholder="Fixed component" step="0.1"></div>
+        <div class="edit-field"><label>Variable CTC (₹ LPA)</label><input type="number" id="e-variable" class="edit-input" placeholder="Variable component" step="0.1"></div>
+        <div class="edit-field"><label>Joining Bonus (₹)</label><input type="number" id="e-joining-bonus" class="edit-input" placeholder="One-time joining bonus" step="1000"></div>
+        <div class="edit-field"><label>Retention Bonus (₹)</label><input type="number" id="e-retention" class="edit-input" placeholder="Retention bonus" step="1000"></div>
         <div class="edit-field" style="grid-column:1/-1"><label>Candidate Notes / Mood</label><textarea id="e-notes" class="edit-input" placeholder="Any notes, mood signals, concerns..."></textarea></div>
       </div>
       <!-- Inline ORA for edit -->
@@ -1445,8 +1460,8 @@ function toast(msg,type='info',duration=3200){
 /* ======================================================
    SUPABASE CONFIG — paste your values here
 ====================================================== */
-const SUPABASE_URL = 'https://mvzoeqvpxomcwniugfql.supabase.co';       // e.g. https://xyzxyz.supabase.co
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12em9lcXZweG9tY3duaXVnZnFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDMxNjcsImV4cCI6MjA5NDY3OTE2N30.-mUxwu4fQbiEmu3d84FIDzpuF5b2J6AlgQADx1X_Ra4'; // long key from Settings → API
+const SUPABASE_URL = ''https://mvzoeqvpxomcwniugfql.supabase.co'';       // e.g. https://xyzxyz.supabase.co
+const SUPABASE_ANON_KEY = ''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12em9lcXZweG9tY3duaXVnZnFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDMxNjcsImV4cCI6MjA5NDY3OTE2N30.-mUxwu4fQbiEmu3d84FIDzpuF5b2J6AlgQADx1X_Ra4'; // long key from Settings → API
 
 let _supabase = null;
 function getSupabase(){
@@ -1817,9 +1832,9 @@ function renderTableInto(tbodyId,list){
       <td><div class="candidate-cell"><div class="cand-avatar">${initials}</div><div><div class="cand-name">${esc(c.name)}</div><div style="font-size:.68rem;color:var(--text-muted)">${r.mood}</div></div></div></td>
       <td style="color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:.75rem">${esc(c.phone||'—')}</td>
       <td style="font-size:.8rem;color:var(--text-muted)">${esc(c.role||'—')}</td>
-      <td style="font-size:.8rem">${esc(c.recruiter||'—')}</td>
       <td><span class="stage-badge ${stageCls}">${esc(c.stage)}</span></td>
       <td style="font-size:.78rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace">${dojFmt}</td>
+      <td style="font-size:.75rem">${c.followup&&c.followup.fixed_ctc?`<div style="color:#111827;font-weight:600">₹${c.followup.fixed_ctc}L Fixed</div>${c.followup.variable_ctc?`<div style="color:var(--text-muted);font-size:.68rem">+₹${c.followup.variable_ctc}L Var</div>`:''}`:'<span style="color:var(--text-muted)">—</span>'}</td>
       <td><span class="risk-badge ${riskCls}">${r.riskLevel==='High'?'🔴':r.riskLevel==='Medium'?'🟡':'🟢'} ${r.riskLevel}</span></td>
       <td><div class="prob-bar-wrap"><div class="prob-bar"><div class="prob-fill" style="width:${r.joinProb}%;background:${probColor}"></div></div><span style="font-size:.72rem;color:${probColor};font-weight:600;font-family:'JetBrains Mono',monospace">${r.joinProb}%</span></div></td>
       <td><span class="esc-badge ${escCls}">${r.escalation}</span></td>
@@ -1877,13 +1892,24 @@ async function addCandidate(){
     owner_id:currentUser.id,owner_name:currentUser.name,name,
     phone:document.getElementById('f-phone').value.trim()||null,
     role:document.getElementById('f-role').value.trim()||null,
-    recruiter:document.getElementById('f-recruiter').value.trim()||null,
+    recruiter:currentUser.name,
     stage:document.getElementById('f-stage').value,
     last_contacted:document.getElementById('f-last').value||null,
     doj:document.getElementById('f-doj').value||null,
     notes:document.getElementById('f-notes').value.trim()||null,
-    followup
+    followup:{
+      ...(followup||{}),
+      current_ctc:document.getElementById('f-current-ctc').value||null,
+      fixed_ctc:document.getElementById('f-fixed').value||null,
+      variable_ctc:document.getElementById('f-variable').value||null,
+      joining_bonus:document.getElementById('f-joining-bonus').value||null,
+      retention_bonus:document.getElementById('f-retention').value||null,
+      ...(followup||{})
+    }
   };
+  if(!newRow.followup.current_ctc&&!newRow.followup.fixed_ctc&&!newRow.followup.variable_ctc&&!newRow.followup.joining_bonus&&!newRow.followup.retention_bonus&&!followup){
+    newRow.followup=followup;
+  }
   const {data,error}=await getSupabase().from('candidates').insert(newRow).select().single();
   if(error){toast('Error adding candidate: '+error.message,'error');return;}
   const c=mapFromDB(data);
@@ -1891,7 +1917,7 @@ async function addCandidate(){
   logActivity({type:'add',recruiter:currentUser.name,message:`Added candidate <strong>${name}</strong> — ${newRow.stage}`,ts:new Date().toISOString()});
   queueManagerNotification({type:'new_candidate',recruiter:currentUser.name,candidateName:name,role:newRow.role,stage:newRow.stage,ts:new Date().toISOString(),read:false});
   sendManagerUpdateEmail(c);
-  ['f-name','f-phone','f-role','f-recruiter','f-last','f-doj','f-notes'].forEach(id=>document.getElementById(id).value='');
+  ['f-name','f-phone','f-role','f-last','f-doj','f-notes','f-current-ctc','f-fixed','f-variable','f-joining-bonus','f-retention'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('f-stage').value='Offer Released';
   resetORA();
   renderAll();
@@ -2270,6 +2296,17 @@ function openCC(id){
       </div>
       ${c.followup.recruiter_notes?`<div style="margin-top:.75rem;padding:.65rem .85rem;background:rgba(255,255,255,.025);border:1px solid var(--border);border-radius:8px;font-size:.78rem;color:var(--text)"><strong style="color:var(--text-muted);font-size:.65rem;text-transform:uppercase;letter-spacing:.07em">Recruiter Notes</strong><br>${esc(c.followup.recruiter_notes)}</div>`:''}
       <div style="margin-top:.6rem;font-size:.68rem;color:var(--text-muted)">Filled: ${new Date(c.followup.filledAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})}</div>
+      ${(c.followup.current_ctc||c.followup.fixed_ctc)?`
+      <div style="margin-top:.65rem;padding:.65rem .85rem;background:#f0fdf4;border:1px solid #86efac;border-radius:8px">
+        <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.07em;color:#16a34a;font-weight:700;margin-bottom:.35rem">💰 CTC Details</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;font-size:.75rem">
+          ${c.followup.current_ctc?`<div><div style="color:var(--text-muted);font-size:.62rem">Current CTC</div><div style="font-weight:600;color:#111827">₹${c.followup.current_ctc}L</div></div>`:''}
+          ${c.followup.fixed_ctc?`<div><div style="color:var(--text-muted);font-size:.62rem">Fixed</div><div style="font-weight:600;color:#16a34a">₹${c.followup.fixed_ctc}L</div></div>`:''}
+          ${c.followup.variable_ctc?`<div><div style="color:var(--text-muted);font-size:.62rem">Variable</div><div style="font-weight:600;color:#d97706">₹${c.followup.variable_ctc}L</div></div>`:''}
+          ${c.followup.joining_bonus?`<div><div style="color:var(--text-muted);font-size:.62rem">Joining Bonus</div><div style="font-weight:600;color:#2563eb">₹${Number(c.followup.joining_bonus).toLocaleString('en-IN')}</div></div>`:''}
+          ${c.followup.retention_bonus?`<div><div style="color:var(--text-muted);font-size:.62rem">Retention Bonus</div><div style="font-weight:600;color:#7c3aed">₹${Number(c.followup.retention_bonus).toLocaleString('en-IN')}</div></div>`:''}
+        </div>
+      </div>`:''}
     </div>` : `
     <div class="cc-section cc-full" style="text-align:center;padding:1.25rem">
       <div style="font-size:1.5rem;margin-bottom:.5rem">📋</div>
@@ -2884,6 +2921,13 @@ function openEditModal(id){
   document.getElementById('e-last').value=c.lastContacted||'';
   document.getElementById('e-doj').value=c.doj||'';
   document.getElementById('e-notes').value=c.notes||'';
+  // CTC fields
+  const fup=c.followup||{};
+  document.getElementById('e-current-ctc').value=fup.current_ctc||'';
+  document.getElementById('e-fixed').value=fup.fixed_ctc||'';
+  document.getElementById('e-variable').value=fup.variable_ctc||'';
+  document.getElementById('e-joining-bonus').value=fup.joining_bonus||'';
+  document.getElementById('e-retention').value=fup.retention_bonus||'';
   // Restore ORA
   Object.keys(eoraState).forEach(k=>delete eoraState[k]);
   if(c.followup)Object.assign(eoraState,c.followup);
@@ -2906,9 +2950,17 @@ async function saveEditCandidate(){
   const idx=candidates.findIndex(c=>c.id===editingCandidateId);
   if(idx===-1){toast('Candidate not found.','error');return;}
   const eoNotes=document.getElementById('eora-notes')?document.getElementById('eora-notes').value.trim():'';
-  const followup=Object.keys(eoraState).length>0||eoNotes
-    ?{...eoraState,recruiter_notes:eoNotes,filledAt:candidates[idx].followup?.filledAt||new Date().toISOString()}
-    :candidates[idx].followup;
+  const followup={
+    ...(candidates[idx].followup||{}),
+    ...eoraState,
+    recruiter_notes:eoNotes,
+    filledAt:candidates[idx].followup?.filledAt||new Date().toISOString(),
+    current_ctc:document.getElementById('e-current-ctc').value||null,
+    fixed_ctc:document.getElementById('e-fixed').value||null,
+    variable_ctc:document.getElementById('e-variable').value||null,
+    joining_bonus:document.getElementById('e-joining-bonus').value||null,
+    retention_bonus:document.getElementById('e-retention').value||null
+  };
   const updates={
     name,
     phone:document.getElementById('e-phone').value.trim()||null,
