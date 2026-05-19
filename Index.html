@@ -1,0 +1,3298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HireShield AI — Protecting Hiring Outcomes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg-deep: #f1f5f9;
+  --bg-mid: #ffffff;
+  --bg-card: #ffffff;
+  --bg-glass: #f8fafc;
+  --border: #d1d5db;
+  --border-bright: #93c5fd;
+  --accent: #2563eb;
+  --accent2: #1d4ed8;
+  --accent3: #3b82f6;
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --danger2: #ef4444;
+  --text: #111827;
+  --text-muted: #374151;
+  --text-dim: #9ca3af;
+  --glow: 0 4px 24px rgba(37,99,235,0.1);
+  --glow-danger: 0 4px 24px rgba(220,38,38,0.08);
+  --glow-success: 0 4px 24px rgba(22,163,74,0.08);
+  --radius: 12px;
+  --radius-sm: 7px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--bg-deep);color:var(--text);min-height:100vh;overflow-x:hidden}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg-deep)}
+::-webkit-scrollbar-thumb{background:var(--accent);border-radius:4px}
+
+/* ─── UTILITIES ─── */
+.hidden{display:none!important}
+.flex{display:flex}
+.flex-col{flex-direction:column}
+.items-center{align-items:center}
+.justify-between{justify-content:space-between}
+.gap-2{gap:.5rem}
+.gap-3{gap:.75rem}
+.gap-4{gap:1rem}
+.gap-6{gap:1.5rem}
+.grid{display:grid}
+.text-xs{font-size:.72rem}
+.text-sm{font-size:.82rem}
+.text-lg{font-size:1.1rem}
+.text-xl{font-size:1.35rem}
+.text-2xl{font-size:1.6rem}
+.font-bold{font-weight:700}
+.font-mono{font-family:'JetBrains Mono',monospace}
+.syne{font-family:'Syne',sans-serif}
+.truncate{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w-full{width:100%}
+.relative{position:relative}
+.absolute{position:absolute}
+.pointer{cursor:pointer}
+
+/* ─── ANIMATIONS ─── */
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:translateX(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+@keyframes glow-pulse{0%,100%{box-shadow:0 0 18px rgba(200,146,26,.15)}50%{box-shadow:0 0 36px rgba(200,146,26,.3)}}
+@keyframes counter-tick{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes ripple{0%{transform:scale(0);opacity:.5}100%{transform:scale(4);opacity:0}}
+@keyframes particle-float{0%{transform:translateY(100vh) rotate(0deg);opacity:0}10%{opacity:.3}90%{opacity:.15}100%{transform:translateY(-10vh) rotate(720deg);opacity:0}}
+@keyframes timeline-appear{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:translateX(0)}}
+@keyframes scanline{0%{top:-5%}100%{top:105%}}
+@keyframes border-glow{0%,100%{border-color:rgba(200,146,26,.15)}50%{border-color:rgba(200,146,26,.4)}}
+@keyframes toast-in{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes toast-out{from{transform:translateX(0);opacity:1}to{transform:translateX(120%);opacity:0}}
+
+/* ─── PARTICLES BG ─── */
+.particles-bg{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:hidden}
+.particle{position:absolute;width:2px;height:2px;background:var(--accent2);border-radius:50%;animation:particle-float linear infinite;opacity:.25}
+.orb{position:absolute;border-radius:50%;filter:blur(120px);pointer-events:none;opacity:.06}
+.orb-1{width:680px;height:680px;background:radial-gradient(circle,#3b82f6,transparent);top:-220px;left:-130px}
+.orb-2{width:500px;height:500px;background:radial-gradient(circle,#6366f1,transparent);bottom:-130px;right:-90px}
+.orb-3{width:340px;height:340px;background:radial-gradient(circle,#2563eb,transparent);top:40%;left:44%}
+
+/* ─── GRID OVERLAY ─── */
+.grid-overlay{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(37,99,235,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(37,99,235,.025) 1px,transparent 1px);background-size:52px 52px}
+
+/* ─── LOADING SCREEN ─── */
+#loading-screen{position:fixed;inset:0;z-index:9999;background:var(--bg-deep);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem}
+.loader-logo{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.loader-ring{width:56px;height:56px;border:2px solid rgba(200,146,26,.2);border-top-color:var(--accent);border-radius:50%;animation:spin .9s linear infinite}
+.loader-text{color:var(--text-muted);font-size:.82rem;letter-spacing:.1em;text-transform:uppercase;animation:pulse 1.8s ease infinite}
+
+/* ─── LOGIN PAGE ─── */
+#login-page{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:var(--bg-deep);overflow:hidden}
+.login-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 22% 48%,rgba(37,99,235,.08) 0%,transparent 58%),radial-gradient(ellipse at 78% 22%,rgba(99,102,241,.06) 0%,transparent 52%)}
+.login-card{position:relative;z-index:2;background:#ffffff;border:1px solid rgba(37,99,235,.15);border-radius:20px;padding:2.5rem;width:min(400px,92vw);box-shadow:0 8px 40px rgba(37,99,235,.1),0 1px 3px rgba(0,0,0,.06);animation:fadeIn .6s ease}
+.login-logo{text-align:center;margin-bottom:1.5rem}
+.login-logo-icon{width:52px;height:52px;background:linear-gradient(135deg,var(--accent3),var(--accent));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin:0 auto .75rem;box-shadow:0 0 28px rgba(200,146,26,.3)}
+.login-logo h1{font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;background:linear-gradient(135deg,var(--text),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.login-logo p{color:var(--text-muted);font-size:.76rem;margin-top:.3rem;line-height:1.6}
+.form-group{margin-bottom:1rem}
+.form-group label{display:block;font-size:.75rem;color:var(--text-muted);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.form-input{width:100%;background:#ffffff;border:1px solid var(--border);border-radius:10px;padding:.7rem 1rem;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.88rem;transition:all .2s;outline:none}
+.form-input:focus{border-color:var(--accent);background:rgba(200,146,26,.06);box-shadow:0 0 0 3px rgba(200,146,26,.1)}
+.form-input option{background:#ffffff;color:#111827}
+.btn-login{width:100%;padding:.82rem;background:linear-gradient(135deg,var(--accent3),var(--accent));border:none;border-radius:10px;color:#0f0a05;font-family:'Syne',sans-serif;font-size:.92rem;font-weight:700;cursor:pointer;transition:all .3s;letter-spacing:.04em;margin-top:.5rem}
+.btn-login:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(200,146,26,.35)}
+.btn-login:active{transform:translateY(0)}
+.login-demo-creds{margin-top:1.25rem;padding:.9rem 1rem;background:rgba(200,146,26,.06);border:1px solid rgba(200,146,26,.14);border-radius:10px;font-size:.75rem;color:var(--text-muted);line-height:1.9}
+.login-demo-creds strong{color:var(--accent2)}
+
+/* ─── APP LAYOUT ─── */
+#app{display:none;min-height:100vh;position:relative;z-index:1}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:236px;background:#ffffff;border-right:1px solid rgba(37,99,235,.1);box-shadow:2px 0 12px rgba(0,0,0,.04);z-index:50;display:flex;flex-direction:column;padding:1.25rem 0;transition:transform .3s}
+.sidebar-logo{padding:0 1.25rem 1.25rem;border-bottom:1px solid var(--border)}
+.sidebar-logo-mark{display:flex;align-items:center;gap:.6rem}
+.sidebar-logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--accent3),var(--accent));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0}
+.sidebar-brand{font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;color:var(--text)}
+.nav-section{padding:.75rem 1rem .25rem;font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;color:var(--text-dim);font-weight:700}
+.nav-item{display:flex;align-items:center;gap:.6rem;padding:.55rem 1rem;margin:1px .5rem;border-radius:8px;cursor:pointer;transition:all .15s;color:var(--text-muted);font-size:.82rem;font-weight:500;border:1px solid transparent}
+.nav-item:hover{background:#eff6ff;color:#1e40af;border-color:#bfdbfe}
+.nav-item.active{background:#dbeafe;color:#1d4ed8;border-color:#93c5fd}
+.nav-item .nav-icon{width:16px;text-align:center;font-size:.9rem}
+.nav-badge{margin-left:auto;background:rgba(224,96,96,.85);color:#fff;font-size:.62rem;padding:.1rem .42rem;border-radius:20px;font-weight:600}
+.sidebar-bottom{margin-top:auto;padding:1rem 1.25rem;border-top:1px solid var(--border)}
+.user-card{background:rgba(200,146,26,.08);border:1px solid var(--border);border-radius:11px;padding:.7rem;display:flex;align-items:center;gap:.6rem}
+.user-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent3),var(--accent));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.82rem;flex-shrink:0;color:#0f0a05;}
+.user-info{flex:1;min-width:0}
+.user-name{font-size:.8rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-role{font-size:.65rem;color:var(--accent2);text-transform:uppercase;letter-spacing:.05em}
+.btn-logout{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.9rem;padding:.25rem;border-radius:6px;transition:all .2s;flex-shrink:0}
+.btn-logout:hover{color:var(--danger);background:rgba(224,96,96,.08)}
+.main-content{margin-left:236px;padding:1.5rem;min-height:100vh}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border)}
+.topbar-title{font-family:'Syne',sans-serif;font-size:1.35rem;font-weight:700;color:var(--text)}
+.topbar-right{display:flex;align-items:center;gap:.65rem}
+.ai-badge{display:flex;align-items:center;gap:.35rem;background:rgba(200,146,26,.08);border:1px solid rgba(200,146,26,.18);border-radius:20px;padding:.28rem .8rem;font-size:.72rem;color:var(--accent2);font-weight:500}
+.ai-dot{width:5px;height:5px;border-radius:50%;background:var(--accent2);animation:pulse 2s ease infinite}
+.notif-btn{width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;color:var(--text-muted);font-size:.9rem;position:relative}
+.notif-btn:hover{border-color:var(--border-bright);color:var(--text)}
+.notif-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--danger);border:1.5px solid var(--bg-deep)}
+
+/* ─── STAT CARDS ─── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem;margin-bottom:1.25rem}
+.stat-card{background:#ffffff;box-shadow:0 2px 8px rgba(0,0,0,.05);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem;cursor:pointer;transition:all .25s;position:relative;overflow:hidden;animation:fadeIn .5s ease both}
+.stat-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.02),transparent);pointer-events:none}
+.stat-card:hover{transform:translateY(-3px);border-color:var(--border-bright);box-shadow:var(--glow)}
+.stat-card.active-filter{border-color:var(--accent);box-shadow:var(--glow)}
+.stat-card .stat-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;margin-bottom:.8rem}
+.stat-card .stat-label{font-size:.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:.3rem;font-weight:600}
+.stat-card .stat-value{font-family:'Syne',sans-serif;font-size:1.85rem;font-weight:800;line-height:1}
+.stat-card .stat-sub{font-size:.68rem;color:var(--text-muted);margin-top:.25rem}
+.stat-1 .stat-icon{background:rgba(200,146,26,.1);color:var(--accent2)}
+.stat-1 .stat-value{color:var(--text)}
+.stat-2 .stat-icon{background:rgba(224,96,96,.1);color:var(--danger)}
+.stat-2 .stat-value{color:var(--danger)}
+.stat-3 .stat-icon{background:rgba(232,160,40,.1);color:var(--warning)}
+.stat-3 .stat-value{color:var(--warning)}
+.stat-4 .stat-icon{background:rgba(126,196,126,.1);color:var(--success)}
+.stat-4 .stat-value{color:var(--success)}
+
+/* ─── PANELS ─── */
+.panel{background:#ffffff;border:1px solid rgba(37,99,235,.1);border-radius:var(--radius);padding:1.15rem;animation:fadeIn .4s ease both;box-shadow:0 2px 12px rgba(0,0,0,.04)}
+.panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem}
+.panel-title{font-family:'Syne',sans-serif;font-size:.92rem;font-weight:700;color:var(--text);display:flex;align-items:center;gap:.45rem}
+.panel-title .title-icon{font-size:1rem}
+
+/* ─── BUTTONS ─── */
+.btn{display:inline-flex;align-items:center;gap:.35rem;padding:.48rem .9rem;border-radius:7px;border:none;font-family:'DM Sans',sans-serif;font-size:.8rem;font-weight:500;cursor:pointer;transition:all .18s;white-space:nowrap}
+.btn-primary{background:linear-gradient(135deg,var(--accent3),var(--accent));color:#fff;box-shadow:0 2px 12px rgba(200,146,26,.2)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(200,146,26,.3)}
+.btn-secondary{background:rgba(255,255,255,.04);color:var(--text-muted);border:1px solid var(--border)}
+.btn-secondary:hover{background:rgba(255,255,255,.07);border-color:var(--border-bright);color:var(--text)}
+.btn-danger{background:rgba(224,96,96,.1);color:var(--danger);border:1px solid rgba(224,96,96,.2)}
+.btn-danger:hover{background:rgba(224,96,96,.18);transform:translateY(-1px)}
+.btn-success{background:rgba(126,196,126,.1);color:var(--success);border:1px solid rgba(126,196,126,.2)}
+.btn-success:hover{background:rgba(126,196,126,.18)}
+.btn-sm{padding:.3rem .65rem;font-size:.73rem}
+.btn-icon{width:28px;height:28px;padding:0;justify-content:center;border-radius:7px}
+
+/* ─── FORM ELEMENTS ─── */
+.add-form{display:grid;grid-template-columns:repeat(4,1fr);gap:.65rem}
+.form-field{display:flex;flex-direction:column;gap:.28rem}
+.form-field label{font-size:.67rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.field-input{background:#ffffff;border:1px solid var(--border);border-radius:7px;padding:.5rem .7rem;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.82rem;outline:none;transition:all .18s;width:100%}
+.field-input:focus{border-color:var(--accent);background:rgba(79,142,247,.05);box-shadow:0 0 0 2px rgba(200,146,26,.08)}
+.field-input option{background:#1a1208}
+textarea.field-input{resize:vertical;min-height:65px}
+.form-actions{grid-column:1/-1;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+
+/* ─── FILTERS ─── */
+.filters-row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:.9rem}
+.filter-input{background:#ffffff;border:1px solid var(--border);border-radius:7px;padding:.45rem .8rem;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.79rem;outline:none;transition:all .18s}
+.filter-input:focus{border-color:var(--accent)}
+.filter-input option{background:#1a1208}
+.search-wrap{position:relative;flex:1;min-width:180px}
+.search-icon{position:absolute;left:.7rem;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:.85rem;pointer-events:none}
+.search-wrap .filter-input{padding-left:2rem;width:100%}
+
+/* ─── TABLE ─── */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead tr{border-bottom:1px solid var(--border)}
+th{padding:.55rem .7rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);text-align:left;white-space:nowrap}
+tbody tr{border-bottom:1px solid rgba(37,99,235,.06);transition:background .12s;cursor:pointer}
+tbody tr:hover{background:#f0f7ff}
+td{padding:.6rem .7rem;font-size:.8rem;vertical-align:middle}
+.candidate-cell{display:flex;align-items:center;gap:.55rem}
+.cand-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--accent3),var(--accent));display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0;color:#fff}
+.cand-name{font-weight:500;color:var(--text)}
+.stage-badge{display:inline-flex;align-items:center;gap:.25rem;padding:.18rem .55rem;border-radius:20px;font-size:.67rem;font-weight:500;white-space:nowrap}
+.stage-interview{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+.stage-offer{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0}
+.stage-docs{background:#fffbeb;color:#b45309;border:1px solid #fde68a}
+.stage-confirmed{background:#f0fdf4;color:#16a34a;border:1px solid #86efac}
+.risk-badge{display:inline-flex;align-items:center;gap:.25rem;padding:.18rem .55rem;border-radius:5px;font-size:.67rem;font-weight:600;letter-spacing:.02em}
+.risk-high{background:rgba(224,96,96,.1);color:var(--danger);border:1px solid rgba(224,96,96,.2)}
+.risk-medium{background:rgba(232,160,40,.1);color:var(--warning);border:1px solid rgba(232,160,40,.2)}
+.risk-low{background:rgba(126,196,126,.1);color:var(--success);border:1px solid rgba(126,196,126,.2)}
+.prob-bar-wrap{display:flex;align-items:center;gap:.35rem;min-width:75px}
+.prob-bar{height:3px;background:rgba(255,255,255,.07);border-radius:2px;flex:1;overflow:hidden}
+.prob-fill{height:100%;border-radius:2px;transition:width .4s ease}
+.esc-badge{font-size:.67rem;padding:.18rem .5rem;border-radius:5px;font-weight:600}
+.esc-critical{background:rgba(224,96,96,.12);color:var(--danger);border:1px solid rgba(224,96,96,.25);animation:pulse 2.5s ease infinite}
+.esc-watch{background:rgba(232,160,40,.1);color:var(--warning);border:1px solid rgba(232,160,40,.2)}
+.esc-normal{background:rgba(126,196,126,.07);color:var(--success);border:1px solid rgba(126,196,126,.15)}
+.actions-cell{display:flex;align-items:center;gap:.35rem}
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--text-muted)}
+.empty-state .empty-icon{font-size:2.5rem;margin-bottom:.65rem;opacity:.3}
+.empty-state p{font-size:.85rem}
+
+/* ─── UPLOAD AREA ─── */
+.upload-area{border:1.5px dashed var(--border);border-radius:10px;padding:1.25rem;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:.85rem}
+.upload-area:hover{border-color:var(--accent);background:rgba(79,142,247,.03)}
+.upload-area .upload-icon{font-size:1.75rem;margin-bottom:.4rem;opacity:.5}
+.upload-area p{font-size:.79rem;color:var(--text-muted)}
+
+/* ─── AI COMMAND CENTER MODAL ─── */
+.modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(15,23,42,.5);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto}
+.command-center{background:#ffffff;border:1px solid var(--border-bright);border-radius:18px;width:min(1080px,98vw);animation:fadeIn .3s ease;position:relative;overflow:hidden;margin:auto}
+.command-center::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent2),var(--accent),var(--accent2),transparent)}
+.cc-header{padding:1.25rem 1.5rem .9rem;border-bottom:1px solid rgba(37,99,235,.1);display:flex;align-items:center;justify-content:space-between;background:#ffffff}
+.cc-title{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:.5rem;color:var(--text)}
+.cc-title-ai{color:var(--accent2)}
+.cc-close{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:7px;color:var(--text-muted);cursor:pointer;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:all .2s}
+.cc-close:hover{background:rgba(224,96,96,.1);border-color:rgba(224,96,96,.25);color:var(--danger)}
+.cc-body{padding:1.1rem;display:grid;grid-template-columns:1fr 1fr;gap:.85rem}
+.cc-full{grid-column:1/-1}
+.cc-section{background:#f8fafc;border:1px solid rgba(37,99,235,.1);border-radius:12px;padding:1rem;animation:fadeIn .4s ease both}
+.cc-section-title{font-family:'Syne',sans-serif;font-size:.78rem;font-weight:700;color:var(--accent2);display:flex;align-items:center;gap:.35rem;margin-bottom:.8rem;text-transform:uppercase;letter-spacing:.07em}
+
+/* ─── TIMELINE ─── */
+.timeline{position:relative;padding-left:1.4rem}
+.timeline::before{content:'';position:absolute;left:.3rem;top:0;bottom:0;width:1px;background:linear-gradient(to bottom,var(--accent),rgba(200,146,26,.2),transparent)}
+.tl-item{position:relative;margin-bottom:.85rem;opacity:0;transform:translateX(-16px);transition:all .4s ease}
+.tl-item.visible{opacity:1;transform:translateX(0)}
+.tl-dot{position:absolute;left:-1.15rem;top:.22rem;width:10px;height:10px;border-radius:50%;border:1.5px solid;background:var(--bg-deep)}
+.tl-dot-blue{border-color:var(--accent);box-shadow:0 0 6px rgba(200,146,26,.4)}
+.tl-dot-cyan{border-color:var(--accent2);box-shadow:0 0 6px rgba(168,212,255,.4)}
+.tl-dot-purple{border-color:var(--accent2);box-shadow:0 0 6px rgba(147,197,253,.4)}
+.tl-dot-warning{border-color:var(--warning);box-shadow:0 0 6px rgba(232,160,40,.4)}
+.tl-dot-danger{border-color:var(--danger);box-shadow:0 0 6px rgba(224,96,96,.4)}
+.tl-dot-success{border-color:var(--success);box-shadow:0 0 6px rgba(52,211,153,.4)}
+.tl-content{background:#f1f5f9;border:1px solid var(--border);border-radius:8px;padding:.55rem .8rem}
+.tl-event{font-size:.79rem;font-weight:500;color:var(--text);margin-bottom:.12rem}
+.tl-time{font-size:.67rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace}
+
+/* ─── ESCALATION METER ─── */
+.esc-reasons{display:flex;flex-direction:column;gap:.4rem;margin-top:.65rem}
+.esc-reason{display:flex;align-items:center;gap:.45rem;padding:.45rem .7rem;background:rgba(224,96,96,.06);border:1px solid rgba(224,96,96,.12);border-radius:7px;font-size:.76rem;color:var(--danger2)}
+.esc-reason-icon{font-size:.85rem;flex-shrink:0}
+
+/* ─── WHAT CHANGED ─── */
+.change-items{display:flex;flex-direction:column;gap:.5rem}
+.change-item{padding:.55rem .8rem;background:#f8fafc;border-left:2px solid var(--accent);border-radius:0 7px 7px 0;font-size:.78rem;color:var(--text)}
+.change-item.warn{border-left-color:var(--warning)}
+.change-item.danger{border-left-color:var(--danger)}
+.change-item span{color:var(--text-muted);font-size:.68rem;display:block;margin-top:.15rem;font-family:'JetBrains Mono',monospace}
+
+/* ─── HEATMAP ─── */
+.heatmap-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:.65rem}
+.hm-cell{padding:.85rem;border-radius:10px;text-align:center;border:1px solid;transition:all .2s;cursor:pointer}
+.hm-cell:hover{transform:scale(1.03)}
+.hm-green{background:rgba(126,196,126,.07);border-color:rgba(126,196,126,.2)}
+.hm-yellow{background:rgba(232,160,40,.07);border-color:rgba(232,160,40,.2)}
+.hm-red{background:rgba(224,96,96,.07);border-color:rgba(224,96,96,.2)}
+.hm-name{font-weight:600;font-size:.77rem;margin-bottom:.35rem;color:var(--text)}
+.hm-score{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800}
+.hm-meta{font-size:.65rem;color:var(--text-muted);margin-top:.15rem}
+
+/* ─── MESSAGE GEN ─── */
+.msg-type-tabs{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.85rem}
+.msg-tab{padding:.28rem .75rem;border-radius:20px;font-size:.72rem;font-weight:500;cursor:pointer;border:1px solid var(--border);color:var(--text-muted);transition:all .18s;background:none}
+.msg-tab.active{background:rgba(200,146,26,.12);border-color:rgba(200,146,26,.3);color:var(--accent2)}
+.msg-box{background:#f8fafc;border:1px solid var(--border);border-radius:9px;padding:.9rem;font-size:.79rem;color:var(--text);line-height:1.75;min-height:110px;white-space:pre-line}
+.msg-actions{display:flex;gap:.45rem;margin-top:.65rem}
+
+/* ─── ANALYTICS ─── */
+.analytics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.85rem}
+.analytics-card{background:rgba(20,14,5,.8);border:1px solid var(--border);border-radius:12px;padding:1rem}
+.analytics-card .a-label{font-size:.67rem;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);margin-bottom:.4rem;font-weight:600}
+.analytics-card .a-value{font-family:'Syne',sans-serif;font-size:1.65rem;font-weight:800}
+.analytics-card .a-chart{height:36px;display:flex;align-items:flex-end;gap:2px;margin-top:.65rem}
+.bar-col{flex:1;border-radius:2px 2px 0 0;transition:height .5s ease}
+
+/* ─── PRIORITY QUEUE ─── */
+.pq-items{display:flex;flex-direction:column;gap:.5rem}
+.pq-item{display:flex;align-items:center;gap:.7rem;padding:.65rem .9rem;background:#f8fafc;border:1px solid var(--border);border-radius:9px;transition:all .18s;cursor:pointer}
+.pq-item:hover{border-color:var(--border-bright);background:rgba(79,142,247,.04);transform:translateX(3px)}
+.pq-priority{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.pq-p1{background:var(--danger);box-shadow:0 0 5px rgba(224,96,96,.5)}
+.pq-p2{background:var(--warning);box-shadow:0 0 5px rgba(232,160,40,.5)}
+.pq-p3{background:var(--success);box-shadow:0 0 5px rgba(52,211,153,.5)}
+.pq-text{flex:1;font-size:.79rem;color:var(--text)}
+.pq-cand{font-size:.68rem;color:var(--accent2);margin-top:.1rem;font-weight:500}
+.pq-time{font-size:.65rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace;white-space:nowrap}
+
+/* ─── MANAGER SECTIONS ─── */
+.hiring-health-score{display:flex;align-items:center;gap:1.25rem;padding:1.1rem;background:rgba(79,142,247,.06);border:1px solid rgba(200,146,26,.18);border-radius:12px;margin-bottom:.85rem}
+.hhs-ring{width:72px;height:72px;position:relative;flex-shrink:0}
+.hhs-ring svg{transform:rotate(-90deg)}
+.hhs-score-text{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.hhs-score{font-family:'Syne',sans-serif;font-size:1.15rem;font-weight:800;color:var(--accent2)}
+.hhs-label{font-size:.52rem;color:var(--text-muted);text-transform:uppercase}
+.hhs-details{flex:1}
+.hhs-title{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:var(--text);margin-bottom:.2rem}
+.hhs-desc{font-size:.77rem;color:var(--text-muted);line-height:1.5}
+.hhs-metrics{display:flex;gap:.85rem;margin-top:.5rem}
+.hhs-metric{font-size:.7rem;color:var(--text-muted)}
+.hhs-metric-val{font-weight:700;color:var(--accent2)}
+.bottleneck-items{display:flex;flex-direction:column;gap:.4rem}
+.bottleneck-item{display:flex;align-items:center;gap:.65rem;padding:.55rem .8rem;background:rgba(251,191,36,.04);border:1px solid rgba(232,160,40,.15);border-radius:9px}
+.bottleneck-stage{font-size:.72rem;font-weight:600;color:var(--warning);min-width:130px}
+.bottleneck-bar-wrap{flex:1;height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden}
+.bottleneck-bar{height:100%;background:linear-gradient(90deg,rgba(251,191,36,.7),rgba(232,160,40,.4));border-radius:2px}
+.bottleneck-count{font-size:.68rem;color:var(--text-muted);min-width:35px;text-align:right;font-family:'JetBrains Mono',monospace}
+
+/* ─── TOAST ─── */
+#toast-container{position:fixed;top:1.1rem;right:1.1rem;z-index:9999;display:flex;flex-direction:column;gap:.4rem;pointer-events:none}
+.toast{display:flex;align-items:center;gap:.6rem;background:#ffffff;border:1px solid #e5e7eb;border-radius:9px;padding:.65rem .9rem;min-width:230px;max-width:320px;box-shadow:0 4px 16px rgba(0,0,0,.08);pointer-events:all;animation:toast-in .25s ease forwards}
+.toast.removing{animation:toast-out .25s ease forwards}
+.toast-icon{font-size:1rem;flex-shrink:0}
+.toast-msg{font-size:.79rem;color:#111827}
+.toast-success{border-left:3px solid #16a34a}
+.toast-error{border-left:3px solid #dc2626}
+.toast-info{border-left:3px solid #2563eb}
+
+/* ─── SCANLINE ─── */
+.scanline{position:fixed;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(212,160,60,.15),transparent);pointer-events:none;z-index:300;animation:scanline 10s linear infinite;opacity:.3}
+
+/* ─── MANAGER DASHBOARD ─── */
+.mgr-welcome-banner{background:rgba(79,142,247,.06);border:1px solid rgba(200,146,26,.18);border-radius:14px;padding:1.35rem;margin-bottom:1.1rem;position:relative;overflow:hidden}
+.mgr-welcome-banner::after{content:'';position:absolute;right:-30px;top:-30px;width:160px;height:160px;background:radial-gradient(circle,rgba(200,146,26,.08),transparent);border-radius:50%;pointer-events:none}
+.mgr-welcome-title{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;color:var(--text);margin-bottom:.2rem}
+.mgr-welcome-sub{font-size:.8rem;color:var(--text-muted);line-height:1.5}
+.mgr-welcome-actions{display:flex;gap:.55rem;margin-top:.9rem;flex-wrap:wrap}
+.recruiter-card{background:rgba(22,15,5,.8);border:1px solid var(--border);border-radius:14px;padding:1.1rem;transition:all .25s;animation:fadeIn .4s ease both;position:relative;overflow:hidden;backdrop-filter:blur(8px)}
+.recruiter-card:hover{transform:translateY(-2px);border-color:var(--border-bright);box-shadow:var(--glow)}
+.recruiter-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:14px 14px 0 0}
+.rc-green::before{background:linear-gradient(90deg,var(--success),rgba(52,211,153,.4))}
+.rc-yellow::before{background:linear-gradient(90deg,var(--warning),rgba(232,160,40,.4))}
+.rc-red::before{background:linear-gradient(90deg,var(--danger),rgba(224,96,96,.4))}
+.rc-header{display:flex;align-items:center;gap:.7rem;margin-bottom:.85rem}
+.rc-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem;flex-shrink:0;color:#fff}
+.rc-name{font-family:'Syne',sans-serif;font-size:.9rem;font-weight:700;color:var(--text)}
+.rc-badge{font-size:.62rem;padding:.12rem .45rem;border-radius:20px;font-weight:600;margin-top:.15rem;display:inline-block}
+.rc-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem;margin-bottom:.75rem}
+.rc-stat{text-align:center;padding:.45rem .25rem;background:#f1f5f9;border-radius:7px;border:1px solid var(--border)}
+.rc-stat-val{font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;line-height:1}
+.rc-stat-lbl{font-size:.58rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-top:.18rem}
+.rc-perf-bar{height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;margin:.35rem 0}
+.rc-perf-fill{height:100%;border-radius:2px;transition:width .8s ease}
+.rc-perf-label{display:flex;justify-content:space-between;font-size:.68rem;color:var(--text-muted)}
+.rc-recent{margin-top:.65rem;padding:.55rem .7rem;background:rgba(255,255,255,.02);border-radius:7px;border:1px solid var(--border)}
+.rc-recent-title{font-size:.62rem;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:.3rem;font-weight:700}
+.rc-recent-item{font-size:.72rem;color:var(--text);padding:.18rem 0;border-bottom:1px solid rgba(255,255,255,.03);display:flex;justify-content:space-between}
+.rc-recent-item:last-child{border-bottom:none}
+.rc-actions{display:flex;gap:.4rem;margin-top:.75rem}
+
+/* ─── NOTIFICATION BANNER ─── */
+.notif-banner{position:fixed;top:0;left:0;right:0;z-index:500;padding:.65rem 1.5rem;display:flex;align-items:center;gap:.65rem;font-size:.82rem;animation:slideIn .35s ease}
+.notif-banner-info{background:rgba(200,146,26,.92);color:#fff;border-bottom:1px solid rgba(212,160,60,.3)}
+.notif-banner-warning{background:rgba(232,160,40,.9);color:#0f0a05;border-bottom:1px solid rgba(232,160,40,.5)}
+.notif-banner-close{margin-left:auto;background:rgba(255,255,255,.2);border:none;color:inherit;border-radius:5px;padding:.18rem .55rem;cursor:pointer;font-size:.75rem}
+
+/* ─── WEEKLY REPORT MODAL ─── */
+#weekly-modal{position:fixed;inset:0;z-index:9998;background:rgba(6,10,18,.92);backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:center;padding:1rem}
+.weekly-card{background:#ffffff;border:1px solid var(--border-bright);border-radius:18px;width:min(660px,96vw);max-height:90vh;display:flex;flex-direction:column;animation:fadeIn .3s ease;position:relative;overflow:hidden}
+.weekly-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent2),var(--accent),var(--accent2),transparent)}
+.weekly-preview{padding:1.1rem 1.5rem;overflow-y:auto;flex:1;font-family:'JetBrains Mono',monospace;font-size:.72rem;line-height:1.85;color:var(--text);background:#f8fafc;white-space:pre-wrap}
+
+/* ─── ACTIVITY FEED ─── */
+.activity-feed{display:flex;flex-direction:column;gap:.4rem;max-height:300px;overflow-y:auto}
+.activity-item{display:flex;align-items:flex-start;gap:.55rem;padding:.55rem .8rem;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:9px;font-size:.76rem;animation:fadeIn .3s ease}
+.activity-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:.28rem}
+.activity-recruiter{font-weight:600;color:var(--accent2)}
+.activity-time{font-size:.64rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace;white-space:nowrap;margin-left:auto;flex-shrink:0}
+
+/* ─── EMAIL MODAL ─── */
+#email-modal{position:fixed;inset:0;z-index:9999;background:rgba(6,10,18,.92);backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:center;padding:1rem}
+.email-modal-card{background:#ffffff;border:1px solid var(--border-bright);border-radius:18px;width:min(620px,96vw);max-height:92vh;display:flex;flex-direction:column;animation:fadeIn .25s ease;position:relative;overflow:hidden}
+.email-modal-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent2),var(--accent),var(--accent2),transparent);z-index:1}
+.em-header{padding:1.1rem 1.5rem .9rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.em-title{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;display:flex;align-items:center;gap:.45rem;color:var(--text)}
+.em-body{padding:1rem 1.5rem;overflow-y:auto;flex:1}
+.em-field{margin-bottom:.72rem}
+.em-field label{display:block;font-size:.67rem;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:.3rem;font-weight:700}
+.em-input{width:100%;background:#ffffff;border:1px solid var(--border);border-radius:7px;padding:.55rem .8rem;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.82rem;outline:none;transition:all .18s}
+.em-input:focus{border-color:var(--accent);background:rgba(79,142,247,.05);box-shadow:0 0 0 2px rgba(200,146,26,.08)}
+textarea.em-input{resize:none;height:120px;font-family:'JetBrains Mono',monospace;font-size:.72rem;line-height:1.7}
+.em-footer{display:flex;gap:.5rem;justify-content:flex-end;padding:.85rem 1.5rem;border-top:1px solid var(--border);align-items:center;flex-shrink:0;background:#ffffff}
+.em-type-row{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.85rem}
+.em-type-btn{padding:.27rem .75rem;border-radius:20px;font-size:.7rem;font-weight:500;cursor:pointer;border:1px solid var(--border);color:var(--text-muted);transition:all .18s;background:none}
+.em-type-btn.active{background:rgba(200,146,26,.12);border-color:rgba(200,146,26,.3);color:var(--accent2)}
+.em-status{display:flex;align-items:center;gap:.45rem;padding:.55rem .85rem;border-radius:7px;font-size:.78rem;margin-right:auto}
+.em-status-sending{background:rgba(200,146,26,.08);border:1px solid rgba(200,146,26,.2);color:var(--accent2)}
+.em-status-success{background:rgba(126,196,126,.08);border:1px solid rgba(126,196,126,.2);color:var(--success)}
+.em-status-error{background:rgba(224,96,96,.08);border:1px solid rgba(224,96,96,.2);color:var(--danger)}
+.em-sending-ring{width:13px;height:13px;border:2px solid rgba(200,146,26,.2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+.em-tag{display:inline-flex;align-items:center;gap:.22rem;padding:.13rem .45rem;border-radius:20px;font-size:.65rem;font-weight:600;margin-left:.35rem}
+.em-tag-escalation{background:rgba(224,96,96,.1);color:var(--danger);border:1px solid rgba(224,96,96,.2)}
+.em-tag-followup{background:rgba(200,146,26,.1);color:var(--accent2);border:1px solid rgba(200,146,26,.2)}
+.em-tag-reminder{background:rgba(126,196,126,.1);color:var(--success);border:1px solid rgba(126,196,126,.2)}
+.email-log-item{display:flex;align-items:flex-start;gap:.65rem;padding:.65rem .9rem;background:rgba(255,255,255,.025);border:1px solid var(--border);border-radius:9px;transition:all .18s}
+.email-log-icon{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0}
+.log-sent{background:rgba(126,196,126,.1)}
+.log-failed{background:rgba(224,96,96,.1)}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%);z-index:100}
+  .sidebar.open{transform:translateX(0)}
+  .main-content{margin-left:0}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .add-form{grid-template-columns:repeat(2,1fr)}
+  .cc-body{grid-template-columns:1fr}
+  .analytics-grid{grid-template-columns:repeat(2,1fr)}
+  .menu-toggle{display:flex}
+}
+@media(max-width:600px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .add-form{grid-template-columns:1fr}
+  .analytics-grid{grid-template-columns:1fr}
+  .topbar{flex-wrap:wrap;gap:.5rem}
+}
+.menu-toggle{display:none;width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--border);align-items:center;justify-content:center;cursor:pointer;font-size:1rem;color:var(--text-muted)}
+.mobile-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:80}
+.mobile-overlay.active{display:block}
+
+/* ─── EMAIL MODAL ─── */
+#email-modal{position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.4);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:1rem}
+.email-modal-card{background:#ffffff;border:1px solid #d1d5db;border-radius:16px;width:min(620px,96vw);max-height:92vh;display:flex;flex-direction:column;animation:fadeIn .25s ease;position:relative;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.12)}
+.email-modal-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent3));z-index:1}
+.em-header{padding:1.1rem 1.5rem .9rem;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#f9fafb}
+.em-title{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;display:flex;align-items:center;gap:.5rem;color:#111827}
+.em-body{padding:1.1rem 1.5rem;overflow-y:auto;flex:1}
+.em-field{margin-bottom:.75rem}
+.em-field label{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:#374151;margin-bottom:.35rem;font-weight:700}
+.em-input{width:100%;background:#ffffff;border:1px solid #d1d5db;border-radius:8px;padding:.6rem .85rem;color:#111827;font-family:'DM Sans',sans-serif;font-size:.85rem;outline:none;transition:all .2s}
+.em-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+textarea.em-input{resize:none;height:130px;font-family:'JetBrains Mono',monospace;font-size:.74rem;line-height:1.7}
+.em-footer{display:flex;gap:.5rem;justify-content:flex-end;padding:.85rem 1.5rem;border-top:1px solid #e5e7eb;align-items:center;flex-shrink:0;background:#f9fafb}
+.em-type-row{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.85rem}
+.em-type-btn{padding:.28rem .75rem;border-radius:20px;font-size:.72rem;font-weight:500;cursor:pointer;border:1px solid #d1d5db;color:#374151;transition:all .18s;background:#fff}
+.em-type-btn.active{background:#dbeafe;border-color:#93c5fd;color:#1d4ed8;font-weight:600}
+.em-status{display:flex;align-items:center;gap:.45rem;padding:.55rem .85rem;border-radius:7px;font-size:.78rem;margin-right:auto}
+.em-status-sending{background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8}
+.em-status-success{background:#f0fdf4;border:1px solid #86efac;color:#16a34a}
+.em-status-error{background:#fef2f2;border:1px solid #fca5a5;color:#dc2626}
+.em-sending-ring{width:13px;height:13px;border:2px solid #bfdbfe;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+.em-tag{display:inline-flex;align-items:center;gap:.22rem;padding:.13rem .45rem;border-radius:20px;font-size:.65rem;font-weight:600;margin-left:.35rem}
+.em-tag-escalation{background:#fef2f2;color:#dc2626;border:1px solid #fca5a5}
+.em-tag-followup{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+.em-tag-reminder{background:#f0fdf4;color:#16a34a;border:1px solid #86efac}
+.email-log-item{display:flex;align-items:flex-start;gap:.65rem;padding:.65rem .9rem;background:#f8fafc;border:1px solid #e5e7eb;border-radius:9px;transition:all .18s}
+.email-log-icon{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0}
+.log-sent{background:#dcfce7}
+.log-failed{background:#fee2e2}
+
+/* ─── MANAGER DASHBOARD ─── */
+.mgr-welcome-banner{background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #bfdbfe;border-radius:14px;padding:1.35rem;margin-bottom:1.1rem;position:relative;overflow:hidden}
+.mgr-welcome-banner::after{content:'';position:absolute;right:-30px;top:-30px;width:160px;height:160px;background:radial-gradient(circle,rgba(37,99,235,.08),transparent);border-radius:50%;pointer-events:none}
+.mgr-welcome-title{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;color:#1e3a8a;margin-bottom:.2rem}
+.mgr-welcome-sub{font-size:.8rem;color:#374151;line-height:1.5}
+.mgr-welcome-actions{display:flex;gap:.55rem;margin-top:.9rem;flex-wrap:wrap}
+.recruiter-card{background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;padding:1.1rem;transition:all .25s;animation:fadeIn .4s ease both;position:relative;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.recruiter-card:hover{transform:translateY(-2px);border-color:#93c5fd;box-shadow:0 4px 16px rgba(37,99,235,.1)}
+.recruiter-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0}
+.rc-green::before{background:linear-gradient(90deg,#16a34a,#4ade80)}
+.rc-yellow::before{background:linear-gradient(90deg,#d97706,#fbbf24)}
+.rc-red::before{background:linear-gradient(90deg,#dc2626,#f87171)}
+.rc-header{display:flex;align-items:center;gap:.7rem;margin-bottom:.85rem}
+.rc-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem;flex-shrink:0;color:#fff}
+.rc-name{font-family:'Syne',sans-serif;font-size:.9rem;font-weight:700;color:#111827}
+.rc-badge{font-size:.62rem;padding:.12rem .45rem;border-radius:20px;font-weight:600;margin-top:.15rem;display:inline-block}
+.rc-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem;margin-bottom:.75rem}
+.rc-stat{text-align:center;padding:.45rem .25rem;background:#f8fafc;border-radius:7px;border:1px solid #e5e7eb}
+.rc-stat-val{font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;line-height:1}
+.rc-stat-lbl{font-size:.58rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-top:.18rem}
+.rc-perf-bar{height:5px;background:#e5e7eb;border-radius:3px;overflow:hidden;margin:.35rem 0}
+.rc-perf-fill{height:100%;border-radius:3px;transition:width .8s ease}
+.rc-perf-label{display:flex;justify-content:space-between;font-size:.68rem;color:#374151;font-weight:500}
+.rc-recent{margin-top:.65rem;padding:.55rem .7rem;background:#f8fafc;border-radius:7px;border:1px solid #e5e7eb}
+.rc-recent-title{font-size:.62rem;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:.3rem;font-weight:700}
+.rc-recent-item{font-size:.72rem;color:#111827;padding:.18rem 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between}
+.rc-recent-item:last-child{border-bottom:none}
+.rc-actions{display:flex;gap:.4rem;margin-top:.75rem}
+
+/* ─── NOTIFICATION BANNER ─── */
+.notif-banner{position:fixed;top:0;left:0;right:0;z-index:500;padding:.65rem 1.5rem;display:flex;align-items:center;gap:.65rem;font-size:.82rem;animation:slideIn .35s ease}
+.notif-banner-info{background:#1d4ed8;color:#fff;border-bottom:1px solid #1e40af}
+.notif-banner-warning{background:#dc2626;color:#fff;border-bottom:1px solid #b91c1c}
+.notif-banner-close{margin-left:auto;background:rgba(255,255,255,.25);border:none;color:#fff;border-radius:5px;padding:.18rem .55rem;cursor:pointer;font-size:.75rem}
+
+/* ─── WEEKLY REPORT MODAL ─── */
+#weekly-modal{position:fixed;inset:0;z-index:9998;background:rgba(15,23,42,.4);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:1rem}
+.weekly-card{background:#ffffff;border:1px solid #d1d5db;border-radius:16px;width:min(660px,96vw);max-height:90vh;display:flex;flex-direction:column;animation:fadeIn .3s ease;position:relative;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.1)}
+.weekly-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--success),var(--accent));z-index:1}
+.weekly-preview{padding:1.1rem 1.5rem;overflow-y:auto;flex:1;font-family:'JetBrains Mono',monospace;font-size:.73rem;line-height:1.85;color:#111827;background:#f8fafc;white-space:pre-wrap}
+
+/* ─── ACTIVITY FEED ─── */
+.activity-feed{display:flex;flex-direction:column;gap:.4rem;max-height:300px;overflow-y:auto}
+.activity-item{display:flex;align-items:flex-start;gap:.55rem;padding:.55rem .8rem;background:#f8fafc;border:1px solid #e5e7eb;border-radius:9px;font-size:.76rem;animation:fadeIn .3s ease}
+.activity-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:.28rem}
+.activity-recruiter{font-weight:600;color:var(--accent2)}
+.activity-time{font-size:.67rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace;white-space:nowrap;margin-left:auto;flex-shrink:0}
+
+/* ─── OFFER RISK ASSESSMENT (inline form) ─── */
+.ora-opt{padding:.25rem .7rem;border-radius:20px;border:1px solid #cbd5e1;background:#fff;color:#475569;font-family:'DM Sans',sans-serif;font-size:.74rem;cursor:pointer;transition:all .15s}
+.ora-opt:hover{border-color:#93c5fd;color:#1d4ed8}
+.ora-opt.ora-sel-danger{background:#fef2f2;border-color:#fca5a5;color:#dc2626;font-weight:600}
+.ora-opt.ora-sel-success{background:#f0fdf4;border-color:#86efac;color:#16a34a;font-weight:600}
+.ora-opt.ora-sel-warn{background:#fffbeb;border-color:#fde68a;color:#d97706;font-weight:600}
+.ora-opt.ora-sel-neutral{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8;font-weight:600}
+
+/* ─── FOLLOW-UP QUESTIONNAIRE MODAL ─── */
+#quest-modal{position:fixed;inset:0;z-index:9997;background:rgba(15,23,42,.5);backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:center;padding:1rem}
+.quest-card{background:#ffffff;border:1px solid #d1d5db;box-shadow:0 8px 32px rgba(0,0,0,.12);border-radius:20px;width:min(640px,96vw);max-height:92vh;display:flex;flex-direction:column;animation:fadeIn .3s ease;position:relative;overflow:hidden}
+.quest-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent2),var(--accent),var(--accent2),transparent)}
+.quest-header{padding:1.2rem 1.5rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0}
+.quest-header-info{flex:1}
+.quest-title{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:var(--text);margin-bottom:.18rem}
+.quest-subtitle{font-size:.75rem;color:var(--text-muted)}
+.quest-body{padding:1.1rem 1.5rem;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:1rem}
+.quest-footer{padding:.9rem 1.5rem;border-top:1px solid #e5e7eb;display:flex;gap:.5rem;justify-content:flex-end;align-items:center;flex-shrink:0;background:#ffffff}
+.quest-section{background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:1rem}
+.quest-section-title{font-family:'Syne',sans-serif;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--accent2);margin-bottom:.85rem;display:flex;align-items:center;gap:.4rem}
+.quest-field{margin-bottom:.85rem}
+.quest-field:last-child{margin-bottom:0}
+.quest-label{font-size:.78rem;font-weight:600;color:var(--text);margin-bottom:.5rem;display:block}
+.quest-label span{font-size:.68rem;color:var(--text-muted);font-weight:400;margin-left:.35rem}
+.quest-options{display:flex;gap:.4rem;flex-wrap:wrap}
+.quest-opt{padding:.3rem .85rem;border-radius:20px;border:1px solid var(--border);background:none;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:.78rem;cursor:pointer;transition:all .18s}
+.quest-opt:hover{border-color:var(--border-bright);color:var(--text)}
+.quest-opt.selected{background:rgba(200,146,26,.18);border-color:var(--accent);color:var(--accent2);font-weight:600}
+.quest-opt.selected-danger{background:rgba(224,96,96,.15);border-color:var(--danger);color:var(--danger2);font-weight:600}
+.quest-opt.selected-success{background:rgba(126,196,126,.15);border-color:var(--success);color:var(--success);font-weight:600}
+.quest-opt.selected-warning{background:rgba(232,160,40,.15);border-color:var(--warning);color:var(--warning);font-weight:600}
+.quest-textarea{width:100%;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:.6rem .8rem;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.82rem;resize:vertical;min-height:72px;outline:none;transition:all .18s}
+.quest-textarea:focus{border-color:var(--accent);background:rgba(200,146,26,.05);box-shadow:0 0 0 2px rgba(200,146,26,.08)}
+.quest-ai-score{display:flex;align-items:center;gap:.75rem;padding:.85rem 1rem;border-radius:10px;border:1px solid var(--border);margin-top:.5rem}
+.quest-filled-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.18rem .55rem;border-radius:20px;font-size:.67rem;font-weight:600;background:#dcfce7;border:1px solid #86efac;color:#16a34a;margin-left:.5rem}
+
+/* ─── EDIT CANDIDATE MODAL ─── */
+#edit-modal{position:fixed;inset:0;z-index:9996;background:rgba(15,23,42,.4);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:1rem}
+.edit-card{background:#ffffff;border:1px solid #d1d5db;border-radius:16px;width:min(700px,96vw);max-height:92vh;display:flex;flex-direction:column;animation:fadeIn .25s ease;box-shadow:0 8px 32px rgba(0,0,0,.12);overflow:hidden}
+.edit-card-header{padding:1rem 1.5rem;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;background:#f9fafb;flex-shrink:0}
+.edit-card-title{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;color:#111827;display:flex;align-items:center;gap:.4rem}
+.edit-card-body{padding:1.25rem 1.5rem;overflow-y:auto;flex:1}
+.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.edit-field{display:flex;flex-direction:column;gap:.28rem}
+.edit-field label{font-size:.68rem;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:.06em}
+.edit-input{background:#ffffff;border:1px solid #d1d5db;border-radius:7px;padding:.52rem .75rem;color:#111827;font-family:'DM Sans',sans-serif;font-size:.82rem;outline:none;transition:border-color .15s;width:100%}
+.edit-input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.edit-input option{background:#ffffff;color:#111827}
+textarea.edit-input{resize:vertical;min-height:65px}
+.edit-card-footer{padding:.9rem 1.5rem;border-top:1px solid #e5e7eb;display:flex;gap:.5rem;justify-content:flex-end;background:#f9fafb;flex-shrink:0}
+</style>
+</head>
+<body>
+
+<!-- SCANLINE -->
+<div class="scanline"></div>
+
+<!-- PARTICLES BG -->
+<div class="particles-bg" id="particles-bg">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+<div class="grid-overlay"></div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- LOADING SCREEN -->
+<div id="loading-screen">
+  <div class="loader-ring"></div>
+  <div class="loader-logo">HireShield AI</div>
+  <div class="loader-text">Initializing Intelligence Engine…</div>
+</div>
+
+<!-- LOGIN PAGE -->
+<div id="login-page">
+  <div class="login-bg"></div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">🛡️</div>
+      <h1>HireShield AI</h1>
+      <p>Protecting Hiring Outcomes<br>Before Risk Becomes Escalation.</p>
+    </div>
+    <div class="form-group">
+      <label>Work Email</label>
+      <input type="email" id="login-email" class="form-input" placeholder="you@yourcompany.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-password" class="form-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div id="login-error" style="display:none;padding:.6rem .85rem;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:.78rem;color:#dc2626;margin-bottom:.75rem"></div>
+    <button class="btn-login" id="login-btn" onclick="doLogin()">
+      🔐 &nbsp;Sign In
+    </button>
+    <div style="text-align:center;margin-top:.9rem">
+      <a href="#" onclick="showForgotPassword()" style="font-size:.76rem;color:#2563eb;text-decoration:none">Forgot password?</a>
+    </div>
+    <div id="reset-form" style="display:none;margin-top:.85rem;padding:.9rem;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px">
+      <div style="font-size:.78rem;color:#0369a1;font-weight:600;margin-bottom:.5rem">🔑 Reset Password</div>
+      <input type="email" id="reset-email" class="form-input" placeholder="your@email.com" style="margin-bottom:.5rem">
+      <div style="display:flex;gap:.4rem">
+        <button class="btn btn-primary btn-sm" onclick="sendPasswordReset()" style="flex:1">Send Reset Email</button>
+        <button class="btn btn-secondary btn-sm" onclick="hideForgotPassword()">Cancel</button>
+      </div>
+      <div id="reset-msg" style="display:none;font-size:.75rem;margin-top:.5rem;color:#16a34a"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="mobile-overlay" id="mobile-overlay" onclick="closeSidebar()"></div>
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-mark">
+        <div class="sidebar-logo-icon">🛡️</div>
+        <span class="sidebar-brand syne">HireShield AI</span>
+      </div>
+    </div>
+
+    <div class="nav-section">Platform</div>
+    <div class="nav-item active" onclick="showSection('dashboard')">
+      <span class="nav-icon">📊</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="showSection('candidates')">
+      <span class="nav-icon">👥</span> Candidates
+      <span class="nav-badge" id="nav-badge-cand">0</span>
+    </div>
+    <div class="nav-item" onclick="showSection('followup')">
+      <span class="nav-icon">📋</span> Follow-up Queue
+      <span class="nav-badge" id="nav-badge-fu">0</span>
+    </div>
+
+    <div class="nav-section">AI Intelligence</div>
+    <div class="nav-item" onclick="showSection('priority')">
+      <span class="nav-icon">⚡</span> Priority Queue
+    </div>
+    <div class="nav-item" onclick="showSection('analytics')">
+      <span class="nav-icon">📈</span> Analytics
+    </div>
+
+    <div class="nav-section" id="mgr-nav-label" style="display:none">Manager View</div>
+    <div class="nav-item hidden" id="nav-mgrdash" onclick="showSection('mgrdash')">
+      <span class="nav-icon">🏢</span> Manager Dashboard
+    </div>
+    <div class="nav-item hidden" id="nav-heatmap" onclick="showSection('heatmap')">
+      <span class="nav-icon">🔥</span> Recruiter Heatmap
+    </div>
+    <div class="nav-item hidden" id="nav-health" onclick="showSection('health')">
+      <span class="nav-icon">💚</span> Hiring Health
+    </div>
+    <div class="nav-item hidden" id="nav-escalation" onclick="showSection('escalation')">
+      <span class="nav-icon">🚨</span> Escalation Overview
+    </div>
+
+    <div class="nav-section">Communications</div>
+    <div class="nav-item" onclick="showSection('emaillog')">
+      <span class="nav-icon">📨</span> Email Log
+      <span class="nav-badge" id="nav-badge-email" style="background:var(--success)">0</span>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div class="user-card">
+        <div class="user-avatar" id="user-avatar">R</div>
+        <div class="user-info">
+          <div class="user-name" id="user-name">User</div>
+          <div class="user-role" id="user-role-badge">Recruiter</div>
+        </div>
+        <button class="btn-logout" onclick="doLogout()" title="Logout">⏏</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+    <div class="topbar">
+      <div class="flex items-center gap-3">
+        <button class="menu-toggle" onclick="openSidebar()">☰</button>
+        <div class="topbar-title syne" id="page-title">Dashboard</div>
+      </div>
+      <div class="topbar-right">
+        <div class="ai-badge"><div class="ai-dot"></div> AI Engine Active</div>
+        <div class="notif-btn" onclick="showNotifications()">🔔<div class="notif-dot"></div></div>
+        <div class="ai-badge" style="background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.3)">
+          <span style="color:var(--success);font-size:.65rem">●</span>
+          <span style="color:var(--success)">Live</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD SECTION -->
+    <div id="section-dashboard">
+      <!-- STAT CARDS -->
+      <div class="stats-grid" id="stats-grid"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <!-- QUICK ADD -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title"><span class="title-icon">➕</span> Add Candidate</div>
+            <div class="flex gap-2">
+              <label class="btn btn-secondary btn-sm pointer" for="csv-upload">📂 Upload CSV</label>
+              <input type="file" id="csv-upload" accept=".xlsx,.csv" class="hidden" onchange="handleFileUpload(event)">
+            </div>
+          </div>
+          <div class="add-form" id="add-form">
+            <div class="form-field">
+              <label>Candidate Name *</label>
+              <input type="text" id="f-name" class="field-input" placeholder="Full name">
+            </div>
+            <div class="form-field">
+              <label>Phone Number</label>
+              <input type="text" id="f-phone" class="field-input" placeholder="+91 xxxxxxxx">
+            </div>
+            <div class="form-field">
+              <label>Role Applied</label>
+              <input type="text" id="f-role" class="field-input" placeholder="e.g. Senior SDE">
+            </div>
+            <div class="form-field">
+              <label>Recruiter Name</label>
+              <input type="text" id="f-recruiter" class="field-input" placeholder="Recruiter">
+            </div>
+            <div class="form-field">
+              <label>Current Stage</label>
+              <select id="f-stage" class="field-input">
+                <option value="Offer Released">Offer Released</option>
+                <option value="Offer Accepted">Offer Accepted</option>
+                <option value="Offer Follow-up">Offer Follow-up</option>
+                <option value="DOJ Confirmation">DOJ Confirmation</option>
+                <option value="Documents Pending">Documents Pending</option>
+                <option value="Joined">Joined</option>
+                <option value="Offer Dropped">Offer Dropped</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Last Contacted</label>
+              <input type="date" id="f-last" class="field-input">
+            </div>
+            <div class="form-field">
+              <label>Joining Date (DOJ)</label>
+              <input type="date" id="f-doj" class="field-input">
+            </div>
+            <div class="form-field" style="grid-column:1/-1">
+              <label>Candidate Notes / Mood</label>
+              <textarea id="f-notes" class="field-input" placeholder="Any notes, mood signals, concerns..."></textarea>
+            </div>
+            <div class="form-actions">
+              <!-- OFFER RISK ASSESSMENT COLLAPSIBLE -->
+              <div style="grid-column:1/-1;width:100%;margin-bottom:.75rem">
+                <div onclick="toggleORA()" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:.5rem .75rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;user-select:none">
+                  <span style="font-size:.8rem;font-weight:600;color:#1d4ed8">⚡ Offer Risk Assessment</span>
+                  <span id="ora-arrow" style="font-size:.75rem;color:#1d4ed8;transition:transform .2s">▼</span>
+                </div>
+                <div id="ora-body" style="display:none;margin-top:.6rem;padding:.9rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+                    <!-- Counter Offer -->
+                    <div>
+                      <div style="font-size:.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">Counter Offer Expected?</div>
+                      <div style="display:flex;gap:.3rem;flex-wrap:wrap" id="ora-counter">
+                        <button class="ora-opt" onclick="oraSelect(this,'counter_offer','Yes')" data-val="Yes">Yes</button>
+                        <button class="ora-opt" onclick="oraSelect(this,'counter_offer','No')" data-val="No">No</button>
+                        <button class="ora-opt" onclick="oraSelect(this,'counter_offer','Maybe')" data-val="Maybe">Maybe</button>
+                      </div>
+                    </div>
+                    <!-- Response Speed -->
+                    <div>
+                      <div style="font-size:.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">Candidate Response Speed</div>
+                      <div style="display:flex;gap:.3rem;flex-wrap:wrap" id="ora-speed">
+                        <button class="ora-opt" onclick="oraSelect(this,'response_speed','Fast')" data-val="Fast">⚡ Fast</button>
+                        <button class="ora-opt" onclick="oraSelect(this,'response_speed','Medium')" data-val="Medium">Medium</button>
+                        <button class="ora-opt" onclick="oraSelect(this,'response_speed','Slow')" data-val="Slow">🐢 Slow</button>
+                      </div>
+                    </div>
+                    <!-- Enthusiasm -->
+                    <div>
+                      <div style="font-size:.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">Candidate Enthusiasm</div>
+                      <div style="display:flex;gap:.3rem;flex-wrap:wrap" id="ora-enthusiasm">
+                        <button class="ora-opt" onclick="oraSelect(this,'enthusiasm','High')" data-val="High">🔥 High</button>
+                        <button class="ora-opt" onclick="oraSelect(this,'enthusiasm','Medium')" data-val="Medium">Medium</button>
+                        <button class="ora-opt" onclick="oraSelect(this,'enthusiasm','Low')" data-val="Low">😔 Low</button>
+                      </div>
+                    </div>
+                    <!-- Competing Offers -->
+                    <div>
+                      <div style="font-size:.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">Competing Offers?</div>
+                      <div style="display:flex;gap:.3rem;flex-wrap:wrap" id="ora-competing">
+                        <button class="ora-opt" onclick="oraSelect(this,'competing_offers','Yes')" data-val="Yes">Yes</button>
+                        <button class="ora-opt" onclick="oraSelect(this,'competing_offers','No')" data-val="No">No</button>
+                      </div>
+                    </div>
+                    <!-- Relocation -->
+                    <div>
+                      <div style="font-size:.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">Relocation Concern?</div>
+                      <div style="display:flex;gap:.3rem;flex-wrap:wrap" id="ora-relocation">
+                        <button class="ora-opt" onclick="oraSelect(this,'relocation_concern','Yes')" data-val="Yes">Yes</button>
+                        <button class="ora-opt" onclick="oraSelect(this,'relocation_concern','No')" data-val="No">No</button>
+                      </div>
+                    </div>
+                    <!-- Docs -->
+                    <div>
+                      <div style="font-size:.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">Documents Submitted?</div>
+                      <div style="display:flex;gap:.3rem;flex-wrap:wrap" id="ora-docs">
+                        <button class="ora-opt" onclick="oraSelect(this,'docs_status','Complete')" data-val="Complete">✅ Complete</button>
+                        <button class="ora-opt" onclick="oraSelect(this,'docs_status','Partial')" data-val="Partial">Partial</button>
+                        <button class="ora-opt" onclick="oraSelect(this,'docs_status','Pending')" data-val="Pending">⏳ Pending</button>
+                      </div>
+                    </div>
+                    <!-- Joining Confidence -->
+                    <div>
+                      <div style="font-size:.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">Joining Confidence</div>
+                      <div style="display:flex;gap:.3rem;flex-wrap:wrap" id="ora-confidence">
+                        <button class="ora-opt" onclick="oraSelect(this,'joining_confidence','Strong')" data-val="Strong">💪 Strong</button>
+                        <button class="ora-opt" onclick="oraSelect(this,'joining_confidence','Moderate')" data-val="Moderate">Moderate</button>
+                        <button class="ora-opt" onclick="oraSelect(this,'joining_confidence','Weak')" data-val="Weak">😟 Weak</button>
+                      </div>
+                    </div>
+                    <!-- Notes -->
+                    <div>
+                      <div style="font-size:.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">Recruiter Assessment Notes</div>
+                      <textarea id="ora-notes" class="field-input" style="min-height:52px;font-size:.78rem" placeholder="Any observations..."></textarea>
+                    </div>
+                  </div>
+                  <!-- Live Risk Preview -->
+                  <div id="ora-preview" style="display:none;margin-top:.65rem;padding:.6rem .85rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;font-size:.78rem;color:#1e293b">
+                    <strong style="color:#1d4ed8">AI Risk Preview:</strong> <span id="ora-preview-text"></span>
+                  </div>
+                </div>
+              </div>
+              <button class="btn btn-primary" onclick="addCandidate()">➕ Add Candidate</button>
+              <button class="btn btn-secondary" onclick="loadDemoData()">🎲 Load Demo Data</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PRIORITY QUEUE PREVIEW -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title"><span class="title-icon">⚡</span> AI Priority Queue</div>
+            <button class="btn btn-secondary btn-sm" onclick="showSection('priority')">View All →</button>
+          </div>
+          <div id="pq-preview" class="pq-items"></div>
+        </div>
+      </div>
+
+      <!-- CANDIDATE TABLE -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="title-icon">👥</span> Candidate Intelligence Table</div>
+          <span style="font-size:.75rem;color:var(--text-muted)" id="cand-count-label">0 candidates</span>
+        </div>
+        <div class="filters-row">
+          <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="filter-input" placeholder="Search candidates…" id="search-input" oninput="renderTable()">
+          </div>
+          <select class="filter-input" id="filter-recruiter" onchange="renderTable()">
+            <option value="">All Recruiters</option>
+          </select>
+          <select class="filter-input" id="filter-stage" onchange="renderTable()">
+            <option value="">All Stages</option>
+            <option value="Offer Released">Offer Released</option>
+            <option value="Offer Accepted">Offer Accepted</option>
+            <option value="Offer Follow-up">Offer Follow-up</option>
+            <option value="DOJ Confirmation">DOJ Confirmation</option>
+            <option value="Documents Pending">Documents Pending</option>
+            <option value="Joined">Joined</option>
+            <option value="Offer Dropped">Offer Dropped</option>
+          </select>
+          <select class="filter-input" id="filter-risk" onchange="renderTable()">
+            <option value="">All Risk</option>
+            <option value="High">High Risk</option>
+            <option value="Medium">Medium Risk</option>
+            <option value="Low">Low Risk</option>
+          </select>
+          <select class="filter-input" id="sort-by" onchange="renderTable()">
+            <option value="esc_desc">Sort: Escalation ↑</option>
+            <option value="name_asc">Sort: Name A-Z</option>
+            <option value="doj_asc">Sort: DOJ Nearest</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Candidate</th>
+                <th>Phone</th>
+                <th>Role</th>
+                <th>Recruiter</th>
+                <th>Stage</th>
+                <th>DOJ</th>
+                <th>AI Risk</th>
+                <th>Join %</th>
+                <th>Escalation</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="candidate-tbody"></tbody>
+          </table>
+          <div id="empty-state" class="empty-state hidden">
+            <div class="empty-icon">🔍</div>
+            <p>No candidates found. Add some or load demo data.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CANDIDATES SECTION -->
+    <div id="section-candidates" class="hidden">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="title-icon">👥</span> All Candidates</div>
+          <button class="btn btn-primary btn-sm" onclick="showSection('dashboard')">+ Add New</button>
+        </div>
+        <div class="filters-row">
+          <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="filter-input" placeholder="Search candidates…" id="search-input-2" oninput="renderTable2()">
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Candidate</th><th>Phone</th><th>Role</th><th>Recruiter</th><th>Stage</th><th>DOJ</th><th>AI Risk</th><th>Join %</th><th>Escalation</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="candidate-tbody-2"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOLLOW-UP SECTION -->
+    <div id="section-followup" class="hidden">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="title-icon">📋</span> Follow-up Queue</div>
+        </div>
+        <div id="followup-list" class="pq-items"></div>
+      </div>
+    </div>
+
+    <!-- PRIORITY SECTION -->
+    <div id="section-priority" class="hidden">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="title-icon">⚡</span> AI Daily Priority Queue</div>
+          <div class="ai-badge"><div class="ai-dot"></div> AI Generated</div>
+        </div>
+        <div id="pq-full" class="pq-items"></div>
+      </div>
+    </div>
+
+    <!-- ANALYTICS SECTION -->
+    <div id="section-analytics" class="hidden">
+      <div style="display:grid;grid-template-columns:1fr;gap:1rem">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title"><span class="title-icon">📈</span> Hiring Analytics</div>
+          </div>
+          <div class="analytics-grid" id="analytics-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HEATMAP SECTION (MANAGER) -->
+    <div id="section-heatmap" class="hidden">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="title-icon">🔥</span> Recruiter Risk Heatmap</div>
+        </div>
+        <div class="heatmap-grid" id="heatmap-grid"></div>
+      </div>
+    </div>
+
+    <!-- HEALTH SECTION (MANAGER) -->
+    <div id="section-health" class="hidden">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title"><span class="title-icon">💚</span> Hiring Health Score</div>
+          </div>
+          <div id="health-score-area"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title"><span class="title-icon">⚠️</span> Pipeline Bottlenecks</div>
+          </div>
+          <div id="bottleneck-area"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ESCALATION SECTION (MANAGER) -->
+    <div id="section-escalation" class="hidden">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="title-icon">🚨</span> Escalation Overview</div>
+        </div>
+        <div id="escalation-list" class="pq-items"></div>
+      </div>
+    </div>
+
+    <!-- EMAIL LOG SECTION -->
+    <div id="section-emaillog" class="hidden">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="title-icon">📨</span> Email Activity Log</div>
+          <button class="btn btn-secondary btn-sm" onclick="clearEmailLog()">🗑 Clear Log</button>
+        </div>
+        <div id="email-log-list" class="pq-items"></div>
+      </div>
+    </div>
+
+    <!-- MANAGER DASHBOARD SECTION -->
+    <div id="section-mgrdash" class="hidden">
+      <!-- Welcome Banner -->
+      <div class="mgr-welcome-banner">
+        <div class="mgr-welcome-title" id="mgr-greet">Good morning, Jordan 👋</div>
+        <div class="mgr-welcome-sub">Here's your real-time recruiter performance overview. <span id="mgr-last-update" style="color:var(--accent2)"></span></div>
+        <div class="mgr-welcome-actions">
+          <button class="btn btn-primary" onclick="openWeeklyReportModal()">📊 Generate Weekly Report</button>
+          <button class="btn btn-secondary" onclick="sendWeeklyReportEmail()">📤 Email Weekly Report</button>
+          <button class="btn btn-secondary" onclick="showSection('heatmap')">🔥 Recruiter Heatmap</button>
+          <button class="btn btn-secondary" onclick="showSection('escalation')">🚨 Escalations</button>
+        </div>
+      </div>
+
+      <!-- Summary Stats for Manager -->
+      <div class="stats-grid" id="mgr-stats-grid" style="margin-bottom:1.25rem"></div>
+
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;margin-bottom:1.25rem">
+        <!-- Recruiter Cards -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title"><span class="title-icon">👤</span> Recruiter Performance Overview</div>
+            <div class="ai-badge"><div class="ai-dot"></div> Live</div>
+          </div>
+          <div id="recruiter-cards-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem"></div>
+        </div>
+
+        <!-- Activity Feed -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title"><span class="title-icon">⚡</span> Activity Feed</div>
+            <button class="btn btn-secondary btn-sm" onclick="clearActivityFeed()">Clear</button>
+          </div>
+          <div id="activity-feed" class="activity-feed"></div>
+        </div>
+      </div>
+
+      <!-- Pending Notifications for Manager -->
+      <div class="panel" id="mgr-notif-panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="title-icon">🔔</span> Pending Recruiter Updates</div>
+          <button class="btn btn-secondary btn-sm" onclick="markAllNotifRead()">✓ Mark All Read</button>
+        </div>
+        <div id="mgr-notif-list" class="pq-items"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- WEEKLY REPORT MODAL -->
+<div id="weekly-modal" class="hidden">
+  <div class="weekly-card">
+    <div class="em-header">
+      <div class="em-title">📊 Weekly Hiring Report — HireShield AI</div>
+      <button class="cc-close" onclick="closeWeeklyModal()">✕</button>
+    </div>
+    <div class="weekly-preview" id="weekly-preview-body"></div>
+    <div class="em-footer">
+      <div id="weekly-status-area"></div>
+      <button class="btn btn-secondary" onclick="copyWeeklyReport()">📋 Copy Report</button>
+      <button class="btn btn-primary" onclick="sendWeeklyReportEmail()">📤 Email to Manager</button>
+      <button class="btn btn-secondary" onclick="closeWeeklyModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- FOLLOW-UP QUESTIONNAIRE MODAL -->
+<div id="quest-modal" class="hidden">
+  <div class="quest-card">
+    <div class="quest-header">
+      <div class="quest-header-info">
+        <div class="quest-title">📋 Follow-up Questionnaire <span class="quest-filled-badge hidden" id="quest-filled-badge">✓ Previously Filled</span></div>
+        <div class="quest-subtitle" id="quest-cand-label">Recruiter Assessment — Ghost Candidate Prediction Tracker</div>
+      </div>
+      <button class="cc-close" onclick="closeQuestionnaire()">✕</button>
+    </div>
+    <div class="quest-body">
+
+      <!-- SECTION 1: RISK INDICATORS -->
+      <div class="quest-section">
+        <div class="quest-section-title">⚠️ Risk Indicators</div>
+
+        <div class="quest-field">
+          <label class="quest-label">Counter Offer Expected? <span>How likely is the candidate to receive/negotiate a counter offer?</span></label>
+          <div class="quest-options" id="qf-counter-offer">
+            <button class="quest-opt" onclick="selectOpt(this,'counter_offer','Yes')" data-val="Yes">Yes</button>
+            <button class="quest-opt" onclick="selectOpt(this,'counter_offer','No')" data-val="No">No</button>
+            <button class="quest-opt" onclick="selectOpt(this,'counter_offer','May Be')" data-val="May Be">May Be</button>
+          </div>
+        </div>
+
+        <div class="quest-field">
+          <label class="quest-label">Candidate Response Speed <span>How quickly does the candidate respond to messages/calls?</span></label>
+          <div class="quest-options" id="qf-response-speed">
+            <button class="quest-opt" onclick="selectOpt(this,'response_speed','Fast')" data-val="Fast">⚡ Fast</button>
+            <button class="quest-opt" onclick="selectOpt(this,'response_speed','Medium')" data-val="Medium">⏱ Medium</button>
+            <button class="quest-opt" onclick="selectOpt(this,'response_speed','Slow')" data-val="Slow">🐢 Slow</button>
+          </div>
+        </div>
+
+        <div class="quest-field">
+          <label class="quest-label">Candidate Enthusiasm <span>Overall excitement level about this opportunity</span></label>
+          <div class="quest-options" id="qf-enthusiasm">
+            <button class="quest-opt" onclick="selectOpt(this,'enthusiasm','High')" data-val="High">🔥 High</button>
+            <button class="quest-opt" onclick="selectOpt(this,'enthusiasm','Medium')" data-val="Medium">😐 Medium</button>
+            <button class="quest-opt" onclick="selectOpt(this,'enthusiasm','Low')" data-val="Low">😔 Low</button>
+          </div>
+        </div>
+
+        <div class="quest-field">
+          <label class="quest-label">Competing Offers? <span>Does the candidate have other active offers?</span></label>
+          <div class="quest-options" id="qf-competing">
+            <button class="quest-opt" onclick="selectOpt(this,'competing_offers','Yes')" data-val="Yes">Yes</button>
+            <button class="quest-opt" onclick="selectOpt(this,'competing_offers','No')" data-val="No">No</button>
+          </div>
+        </div>
+
+        <div class="quest-field">
+          <label class="quest-label">Relocation Concern? <span>Is relocation a blocker or concern for this candidate?</span></label>
+          <div class="quest-options" id="qf-relocation">
+            <button class="quest-opt" onclick="selectOpt(this,'relocation_concern','Yes')" data-val="Yes">Yes</button>
+            <button class="quest-opt" onclick="selectOpt(this,'relocation_concern','No')" data-val="No">No</button>
+          </div>
+        </div>
+
+        <div class="quest-field" style="margin-bottom:0">
+          <label class="quest-label">Documentation Submitted? <span>Current status of required documents</span></label>
+          <div class="quest-options" id="qf-docs">
+            <button class="quest-opt" onclick="selectOpt(this,'docs_status','Complete')" data-val="Complete">✅ Complete</button>
+            <button class="quest-opt" onclick="selectOpt(this,'docs_status','Partial')" data-val="Partial">🔶 Partial</button>
+            <button class="quest-opt" onclick="selectOpt(this,'docs_status','Pending')" data-val="Pending">⏳ Pending</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 2: RECRUITER ASSESSMENT -->
+      <div class="quest-section">
+        <div class="quest-section-title">🧠 Recruiter Assessment</div>
+
+        <div class="quest-field">
+          <label class="quest-label">Joining Confidence <span>Your gut feel — how confident are you this candidate will join?</span></label>
+          <div class="quest-options" id="qf-confidence">
+            <button class="quest-opt" onclick="selectOpt(this,'joining_confidence','Strong')" data-val="Strong">💪 Strong</button>
+            <button class="quest-opt" onclick="selectOpt(this,'joining_confidence','Moderate')" data-val="Moderate">🤔 Moderate</button>
+            <button class="quest-opt" onclick="selectOpt(this,'joining_confidence','Weak')" data-val="Weak">😟 Weak</button>
+          </div>
+        </div>
+
+        <div class="quest-field" style="margin-bottom:0">
+          <label class="quest-label">Recruiter Notes <span>Any additional observations from your follow-up call</span></label>
+          <textarea class="quest-textarea" id="qf-recruiter-notes" placeholder="E.g. Candidate sounded positive but mentioned waiting on another offer. DOJ may need to be pushed by a week..."></textarea>
+        </div>
+      </div>
+
+      <!-- AI SCORE PREVIEW -->
+      <div class="quest-ai-score" id="quest-ai-preview" style="display:none">
+        <div style="font-size:1.6rem">🤖</div>
+        <div style="flex:1">
+          <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);font-weight:700;margin-bottom:.2rem">AI Score Preview (based on questionnaire)</div>
+          <div id="quest-ai-score-text" style="font-size:.85rem;color:var(--text)"></div>
+        </div>
+      </div>
+
+    </div>
+    <div class="quest-footer">
+      <span style="font-size:.72rem;color:var(--text-muted)" id="quest-last-filled"></span>
+      <button class="btn btn-secondary" onclick="closeQuestionnaire()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveQuestionnaire()">💾 Save & Analyse</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT CANDIDATE MODAL -->
+<div id="edit-modal" class="hidden">
+  <div class="edit-card">
+    <div class="edit-card-header">
+      <div class="edit-card-title">✏️ Edit Candidate</div>
+      <button class="cc-close" onclick="closeEditModal()">✕</button>
+    </div>
+    <div class="edit-card-body">
+      <div class="edit-grid">
+        <div class="edit-field"><label>Candidate Name *</label><input type="text" id="e-name" class="edit-input" placeholder="Full name"></div>
+        <div class="edit-field"><label>Phone Number</label><input type="text" id="e-phone" class="edit-input" placeholder="+91 xxxxxxxx"></div>
+        <div class="edit-field"><label>Role Applied</label><input type="text" id="e-role" class="edit-input" placeholder="e.g. Senior SDE"></div>
+        <div class="edit-field"><label>Recruiter Name</label><input type="text" id="e-recruiter" class="edit-input" placeholder="Recruiter"></div>
+        <div class="edit-field"><label>Offer Stage</label>
+          <select id="e-stage" class="edit-input">
+            <option value="Offer Released">Offer Released</option>
+            <option value="Offer Accepted">Offer Accepted</option>
+            <option value="Offer Follow-up">Offer Follow-up</option>
+            <option value="DOJ Confirmation">DOJ Confirmation</option>
+            <option value="Documents Pending">Documents Pending</option>
+            <option value="Joined">Joined</option>
+            <option value="Offer Dropped">Offer Dropped</option>
+          </select>
+        </div>
+        <div class="edit-field"><label>Last Contacted</label><input type="date" id="e-last" class="edit-input"></div>
+        <div class="edit-field"><label>Joining Date (DOJ)</label><input type="date" id="e-doj" class="edit-input"></div>
+        <div class="edit-field" style="grid-column:1/-1"><label>Candidate Notes / Mood</label><textarea id="e-notes" class="edit-input" placeholder="Any notes, mood signals, concerns..."></textarea></div>
+      </div>
+      <!-- Inline ORA for edit -->
+      <div style="margin-top:1rem">
+        <div onclick="toggleEditORA()" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:.45rem .75rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;user-select:none">
+          <span style="font-size:.78rem;font-weight:600;color:#1d4ed8">⚡ Offer Risk Assessment</span>
+          <span id="e-ora-arrow" style="font-size:.72rem;color:#1d4ed8;transition:transform .2s">▼</span>
+        </div>
+        <div id="e-ora-body" style="display:none;margin-top:.5rem;padding:.85rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem">
+            <div><div style="font-size:.67rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem">Counter Offer Expected?</div><div style="display:flex;gap:.3rem;flex-wrap:wrap" id="eora-counter"><button class="ora-opt" onclick="eoraSelect(this,'counter_offer','Yes')" data-val="Yes">Yes</button><button class="ora-opt" onclick="eoraSelect(this,'counter_offer','No')" data-val="No">No</button><button class="ora-opt" onclick="eoraSelect(this,'counter_offer','Maybe')" data-val="Maybe">Maybe</button></div></div>
+            <div><div style="font-size:.67rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem">Response Speed</div><div style="display:flex;gap:.3rem;flex-wrap:wrap" id="eora-speed"><button class="ora-opt" onclick="eoraSelect(this,'response_speed','Fast')" data-val="Fast">⚡ Fast</button><button class="ora-opt" onclick="eoraSelect(this,'response_speed','Medium')" data-val="Medium">Medium</button><button class="ora-opt" onclick="eoraSelect(this,'response_speed','Slow')" data-val="Slow">🐢 Slow</button></div></div>
+            <div><div style="font-size:.67rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem">Enthusiasm</div><div style="display:flex;gap:.3rem;flex-wrap:wrap" id="eora-enthusiasm"><button class="ora-opt" onclick="eoraSelect(this,'enthusiasm','High')" data-val="High">🔥 High</button><button class="ora-opt" onclick="eoraSelect(this,'enthusiasm','Medium')" data-val="Medium">Medium</button><button class="ora-opt" onclick="eoraSelect(this,'enthusiasm','Low')" data-val="Low">😔 Low</button></div></div>
+            <div><div style="font-size:.67rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem">Competing Offers?</div><div style="display:flex;gap:.3rem;flex-wrap:wrap" id="eora-competing"><button class="ora-opt" onclick="eoraSelect(this,'competing_offers','Yes')" data-val="Yes">Yes</button><button class="ora-opt" onclick="eoraSelect(this,'competing_offers','No')" data-val="No">No</button></div></div>
+            <div><div style="font-size:.67rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem">Relocation Concern?</div><div style="display:flex;gap:.3rem;flex-wrap:wrap" id="eora-relocation"><button class="ora-opt" onclick="eoraSelect(this,'relocation_concern','Yes')" data-val="Yes">Yes</button><button class="ora-opt" onclick="eoraSelect(this,'relocation_concern','No')" data-val="No">No</button></div></div>
+            <div><div style="font-size:.67rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem">Documents Submitted?</div><div style="display:flex;gap:.3rem;flex-wrap:wrap" id="eora-docs"><button class="ora-opt" onclick="eoraSelect(this,'docs_status','Complete')" data-val="Complete">✅ Complete</button><button class="ora-opt" onclick="eoraSelect(this,'docs_status','Partial')" data-val="Partial">Partial</button><button class="ora-opt" onclick="eoraSelect(this,'docs_status','Pending')" data-val="Pending">⏳ Pending</button></div></div>
+            <div><div style="font-size:.67rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem">Joining Confidence</div><div style="display:flex;gap:.3rem;flex-wrap:wrap" id="eora-confidence"><button class="ora-opt" onclick="eoraSelect(this,'joining_confidence','Strong')" data-val="Strong">💪 Strong</button><button class="ora-opt" onclick="eoraSelect(this,'joining_confidence','Moderate')" data-val="Moderate">Moderate</button><button class="ora-opt" onclick="eoraSelect(this,'joining_confidence','Weak')" data-val="Weak">😟 Weak</button></div></div>
+            <div><div style="font-size:.67rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem">Recruiter Notes</div><textarea id="eora-notes" class="edit-input" style="min-height:48px;font-size:.76rem" placeholder="Observations..."></textarea></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="edit-card-footer">
+      <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditCandidate()">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- EMAIL COMPOSE MODAL -->
+<div id="email-modal" class="hidden">
+  <div class="email-modal-card">
+    <div class="em-header">
+      <div class="em-title">
+        ✉️ Send Email
+        <span id="em-tag-display"></span>
+      </div>
+      <button class="cc-close" onclick="closeEmailModal()">✕</button>
+    </div>
+    <div class="em-body">
+      <!-- Quick type selector -->
+      <div class="em-type-row" id="em-type-row">
+        <button class="em-type-btn active" onclick="setEmailType(this,'followup')">📞 Follow-up</button>
+        <button class="em-type-btn" onclick="setEmailType(this,'offer')">📋 Offer Reminder</button>
+        <button class="em-type-btn" onclick="setEmailType(this,'joining')">📅 Joining Reminder</button>
+        <button class="em-type-btn" onclick="setEmailType(this,'docs')">📁 Docs Reminder</button>
+        <button class="em-type-btn" onclick="setEmailType(this,'escalation')">🚨 Escalation Alert</button>
+      </div>
+      <div class="em-field">
+        <label>To (Recipient Email)</label>
+        <input type="email" id="em-to" class="em-input" placeholder="recipient@company.com">
+      </div>
+      <div class="em-field">
+        <label>CC (Optional)</label>
+        <input type="email" id="em-cc" class="em-input" placeholder="manager@company.com">
+      </div>
+      <div class="em-field">
+        <label>Subject</label>
+        <input type="text" id="em-subject" class="em-input" placeholder="Email subject...">
+      </div>
+      <div class="em-field">
+        <label>Message Body</label>
+        <textarea id="em-body-text" class="em-input" rows="8"></textarea>
+      </div>
+    </div>
+    <div class="em-footer">
+      <div id="em-status-area"></div>
+      <button class="btn btn-secondary" onclick="closeEmailModal()">Cancel</button>
+      <button class="btn btn-primary" id="em-send-btn" onclick="sendEmail()">📤 Send Email</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI COMMAND CENTER MODAL -->
+<div class="modal-overlay hidden" id="cc-modal" onclick="closeCCOnOverlay(event)">
+  <div class="command-center" id="cc-container">
+    <div class="cc-header">
+      <div class="cc-title">
+        🤖 <span class="cc-title-ai">AI Command Center</span>
+        <span style="font-size:.8rem;color:var(--text-muted);font-weight:400" id="cc-cand-name">— Candidate</span>
+      </div>
+      <button class="cc-close" onclick="closeCC()">✕</button>
+    </div>
+    <div class="cc-body" id="cc-body">
+      <!-- Dynamically populated -->
+    </div>
+  </div>
+</div>
+
+<script>
+/* ======================================================
+   DATA STORE
+====================================================== */
+let candidates = JSON.parse(localStorage.getItem('hs_candidates') || '[]');
+let currentUser = null;
+let activeFilter = null;
+
+function saveData(){localStorage.setItem('hs_candidates',JSON.stringify(candidates))}
+
+/* ======================================================
+   PARTICLES
+====================================================== */
+function createParticles(){
+  const bg = document.getElementById('particles-bg');
+  for(let i=0;i<25;i++){
+    const p=document.createElement('div');
+    p.className='particle';
+    p.style.cssText=`left:${Math.random()*100}%;width:${1+Math.random()*3}px;height:${1+Math.random()*3}px;animation-duration:${8+Math.random()*15}s;animation-delay:${-Math.random()*20}s;opacity:${0.1+Math.random()*0.5}`;
+    bg.appendChild(p);
+  }
+}
+
+/* ======================================================
+   TOAST
+====================================================== */
+function toast(msg,type='info',duration=3200){
+  const icons={info:'💡',success:'✅',error:'❌',warning:'⚠️'};
+  const el=document.createElement('div');
+  el.className=`toast toast-${type}`;
+  el.innerHTML=`<span class="toast-icon">${icons[type]}</span><span class="toast-msg">${msg}</span>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(()=>{
+    el.classList.add('removing');
+    setTimeout(()=>el.remove(),300);
+  },duration);
+}
+
+/* ======================================================
+   AUTH
+====================================================== */
+/* ======================================================
+   SUPABASE CONFIG — paste your values here
+====================================================== */
+const SUPABASE_URL = 'https://mvzoeqvpxomcwniugfql.supabase.co';       // e.g. https://xyzxyz.supabase.co
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12em9lcXZweG9tY3duaXVnZnFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDMxNjcsImV4cCI6MjA5NDY3OTE2N30.-mUxwu4fQbiEmu3d84FIDzpuF5b2J6AlgQADx1X_Ra4'; // long key from Settings → API
+
+let _supabase = null;
+function getSupabase(){
+  if(!_supabase){
+    _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+  return _supabase;
+}
+
+/* ======================================================
+   AUTH FUNCTIONS
+====================================================== */
+async function doLogin(){
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  const btn   = document.getElementById('login-btn');
+
+  if(!email || !pass){ showLoginError('Please enter your email and password.'); return; }
+
+  btn.textContent = '⏳ Signing in…';
+  btn.disabled = true;
+  errEl.style.display = 'none';
+
+  const { data, error } = await getSupabase().auth.signInWithPassword({ email, password: pass });
+
+  btn.textContent = '🔐 Sign In';
+  btn.disabled = false;
+
+  if(error){ showLoginError(error.message); return; }
+
+  const meta = data.user.user_metadata || {};
+  currentUser = {
+    id:    data.user.id,
+    email: data.user.email,
+    name:  meta.name  || data.user.email.split('@')[0],
+    role:  meta.role  || 'recruiter'
+  };
+
+  showLoadingThenApp();
+}
+
+function showLoginError(msg){
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function showForgotPassword(){
+  document.getElementById('reset-form').style.display = 'block';
+  const em = document.getElementById('login-email').value;
+  if(em) document.getElementById('reset-email').value = em;
+}
+function hideForgotPassword(){
+  document.getElementById('reset-form').style.display = 'none';
+}
+
+async function sendPasswordReset(){
+  const email = document.getElementById('reset-email').value.trim();
+  if(!email){ toast('Enter your email first.','error'); return; }
+  const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.href
+  });
+  const msg = document.getElementById('reset-msg');
+  if(error){ msg.style.color='#dc2626'; msg.textContent='Error: '+error.message; }
+  else { msg.style.color='#16a34a'; msg.textContent='✅ Reset email sent! Check your inbox.'; }
+  msg.style.display = 'block';
+}
+
+function showLoadingThenApp(){
+  document.getElementById('login-page').style.display='none';
+  const ls=document.getElementById('loading-screen');
+  ls.style.display='flex';
+  const msgs=['Signing you in…','Loading your pipeline…','Calibrating AI models…','Preparing dashboard…'];
+  let i=0;
+  const lt=ls.querySelector('.loader-text');
+  const iv=setInterval(()=>{lt.textContent=msgs[++i%msgs.length]},700);
+  setTimeout(()=>{clearInterval(iv);ls.style.display='none';initApp();},2200);
+}
+
+async function doLogout(){
+  await getSupabase().auth.signOut();
+  currentUser=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-page').style.display='flex';
+  document.getElementById('login-error').style.display='none';
+  document.getElementById('login-password').value='';
+  toast('Signed out successfully.','info');
+}
+
+async function autoLogin(){
+  // Check for active Supabase session (persists across page refresh)
+  const { data } = await getSupabase().auth.getSession();
+  if(data.session){
+    const user = data.session.user;
+    const meta = user.user_metadata || {};
+    currentUser = {
+      id:    user.id,
+      email: user.email,
+      name:  meta.name  || user.email.split('@')[0],
+      role:  meta.role  || 'recruiter'
+    };
+    document.getElementById('loading-screen').style.display='none';
+    initApp();
+  } else {
+    document.getElementById('loading-screen').style.display='none';
+    document.getElementById('login-page').style.display='flex';
+  }
+
+  // Listen for auth state changes (e.g. after password reset redirect)
+  getSupabase().auth.onAuthStateChange((event, session) => {
+    if(event === 'PASSWORD_RECOVERY'){
+      const newPass = prompt('Enter your new password:');
+      if(newPass){
+        getSupabase().auth.updateUser({ password: newPass })
+          .then(()=>toast('Password updated! Please sign in.','success'));
+      }
+    }
+  });
+}
+
+
+/* ======================================================
+   APP INIT
+====================================================== */
+function initApp(){
+  document.getElementById('app').style.display='block';
+  document.getElementById('user-name').textContent=currentUser.name;
+  document.getElementById('user-role-badge').textContent=currentUser.role.charAt(0).toUpperCase()+currentUser.role.slice(1);
+  document.getElementById('user-avatar').textContent=currentUser.name.charAt(0);
+  if(currentUser.role==='manager'){
+    document.getElementById('mgr-nav-label').style.display='';
+    document.getElementById('nav-mgrdash').classList.remove('hidden');
+    document.getElementById('nav-heatmap').classList.remove('hidden');
+    document.getElementById('nav-health').classList.remove('hidden');
+    document.getElementById('nav-escalation').classList.remove('hidden');
+  }
+  renderAll();
+  toast(`Welcome back, ${currentUser.name}! AI Engine is active.`,'success');
+  if(currentUser.role==='manager'){
+    setTimeout(()=>{
+      showSection('mgrdash');
+      checkManagerNotifications();
+      checkAutoWeeklyReport();
+    },600);
+  }
+}
+
+function renderAll(){
+  renderStats();
+  renderTable();
+  renderPriorityQueue();
+  renderAnalytics();
+  updateNavBadges();
+  updateEmailBadge();
+  if(currentUser&&currentUser.role==='manager'){
+    renderHeatmap();
+    renderHealthScore();
+    renderBottlenecks();
+    renderEscalationOverview();
+    renderManagerDashboard();
+  }
+}
+
+/* ======================================================
+   AI RISK ENGINE
+====================================================== */
+function calcRisk(c){
+  const today=new Date();
+  const lastContact=c.lastContacted?new Date(c.lastContacted):null;
+  const doj=c.doj?new Date(c.doj):null;
+  const notes=(c.notes||'').toLowerCase();
+  const fup=c.followup||null;
+
+  let riskScore=20;
+  let reasons=[];
+  let changes=[];
+
+  // Inactivity
+  if(lastContact){
+    const days=Math.floor((today-lastContact)/(1000*60*60*24));
+    if(days>=7){riskScore+=40;reasons.push(`No contact for ${days} days`);changes.push({text:`Recruiter gap escalated to ${days} days`,type:'danger'})}
+    else if(days>=4){riskScore+=25;reasons.push(`No contact for ${days} days`);changes.push({text:`Follow-up gap: ${days} days (threshold: 3)`,type:'warn'})}
+    else if(days>=2){riskScore+=10;reasons.push(`${days} days since last contact`)}
+  } else {
+    riskScore+=30; reasons.push('No contact date recorded');
+  }
+
+  // Stage risk
+  if(c.stage==='Offer Released'){riskScore+=20;reasons.push('Offer released — awaiting candidate response');changes.push({text:'Offer Released — no acceptance yet, follow-up required',type:'warn'})}
+  if(c.stage==='Offer Follow-up'){riskScore+=15;reasons.push('Offer follow-up pending');changes.push({text:'Candidate in offer follow-up — engagement risk',type:'warn'})}
+  if(c.stage==='Documents Pending'){riskScore+=18;reasons.push('Documents not submitted');changes.push({text:'Documents pending — joining at risk',type:'danger'})}
+  if(c.stage==='Offer Dropped'){riskScore+=60;reasons.push('Offer dropped');changes.push({text:'Candidate has dropped the offer',type:'danger'})}
+  if(c.stage==='DOJ Confirmation'){riskScore+=10;reasons.push('DOJ confirmation pending')}
+
+  // DOJ proximity
+  if(doj){
+    const daysLeft=Math.floor((doj-today)/(1000*60*60*24));
+    if(daysLeft>=0&&daysLeft<=5){riskScore+=35;reasons.push(`DOJ in ${daysLeft} day${daysLeft!==1?'s':''}`);changes.push({text:`DOJ critically close: ${daysLeft} day${daysLeft!==1?'s':''}`,type:'danger'})}
+    else if(daysLeft<=14&&daysLeft>5){riskScore+=20;reasons.push(`DOJ in ${daysLeft} days`);changes.push({text:`DOJ approaching in ${daysLeft} days`,type:'warn'})}
+  }
+
+  // Notes signals
+  const riskKeywords=[
+    {k:'another offer',v:40,r:'Candidate mentioned another offer'},
+    {k:'counter offer',v:38,r:'Counter offer discussion active'},
+    {k:'hesitant',v:25,r:'Candidate showing hesitation'},
+    {k:'unsure',v:22,r:'Candidate unsure about joining'},
+    {k:'needs time',v:18,r:'Candidate requesting more time'},
+    {k:'delayed response',v:20,r:'Delayed response pattern noted'},
+    {k:'notice period',v:12,r:'Long notice period concern'},
+    {k:'relocation',v:15,r:'Relocation concern flagged'},
+  ];
+  riskKeywords.forEach(kw=>{
+    if(notes.includes(kw.k)){riskScore+=kw.v;reasons.push(kw.r);changes.push({text:`AI detected: "${kw.k}" in notes`,type:'danger'})}
+  });
+
+  // ── QUESTIONNAIRE SIGNALS (from follow-up form) ──
+  if(fup){
+    const questDelta=calcQuestRiskDelta(fup);
+    if(questDelta>0)riskScore+=questDelta;
+    // Specific signal reasons
+    if(fup.counter_offer==='Yes'){reasons.push('Counter offer expected (recruiter confirmed)');changes.push({text:'Recruiter confirmed counter offer is expected',type:'danger'})}
+    if(fup.counter_offer==='May Be'){reasons.push('Counter offer possible');changes.push({text:'Counter offer flagged as possible by recruiter',type:'warn'})}
+    if(fup.competing_offers==='Yes'){reasons.push('Active competing offers confirmed');changes.push({text:'Candidate has confirmed competing offers',type:'danger'})}
+    if(fup.response_speed==='Slow'){reasons.push('Slow response speed (recruiter observation)');changes.push({text:'Recruiter marked response speed as Slow',type:'warn'})}
+    if(fup.enthusiasm==='Low'){reasons.push('Low enthusiasm observed by recruiter');changes.push({text:'Enthusiasm dropped — Low (recruiter assessment)',type:'danger'})}
+    if(fup.enthusiasm==='Medium'){changes.push({text:'Enthusiasm rated Medium by recruiter',type:'warn'})}
+    if(fup.relocation_concern==='Yes'){reasons.push('Relocation is a confirmed concern');changes.push({text:'Relocation concern confirmed by recruiter',type:'warn'})}
+    if(fup.docs_status==='Pending'){reasons.push('Documents not yet submitted');changes.push({text:'Documentation status: Pending — action required',type:'danger'})}
+    if(fup.docs_status==='Partial'){reasons.push('Documents partially submitted');changes.push({text:'Documentation status: Partial',type:'warn'})}
+    if(fup.joining_confidence==='Weak'){reasons.push('Recruiter confidence in joining: Weak');changes.push({text:'Recruiter joining confidence: Weak — escalate',type:'danger'})}
+    if(fup.joining_confidence==='Moderate'){changes.push({text:'Recruiter joining confidence: Moderate',type:'warn'})}
+    if(fup.joining_confidence==='Strong'){changes.push({text:'Recruiter confidence is Strong — positive signal',type:'normal'})}
+    if(fup.enthusiasm==='High'){changes.push({text:'High enthusiasm observed — positive indicator',type:'normal'})}
+    if(fup.recruiter_notes&&fup.recruiter_notes.length>10){changes.push({text:`Recruiter note: "${fup.recruiter_notes.slice(0,80)}${fup.recruiter_notes.length>80?'…':''}"`,type:'normal'})}
+  }
+
+  riskScore=Math.min(99,riskScore);
+  const riskLevel=riskScore>=60?'High':riskScore>=35?'Medium':'Low';
+  const joinProb=Math.max(5,100-riskScore);
+  const escalation=riskScore>=70?'Critical':riskScore>=45?'Watch':'Normal';
+
+  // Mood — enhanced with questionnaire
+  let mood='😐 Neutral';
+  if(fup){
+    if(fup.enthusiasm==='High'&&fup.joining_confidence==='Strong')mood='😊 Positive';
+    else if(fup.enthusiasm==='Low'||fup.joining_confidence==='Weak')mood='😟 At Risk';
+    else if(fup.counter_offer==='Yes'||fup.competing_offers==='Yes')mood='😟 At Risk';
+    else if(fup.enthusiasm==='Medium'||fup.joining_confidence==='Moderate')mood='😐 Uncertain';
+  } else {
+    const moodMap=[
+      {kws:['excited','great','confirmed','happy'],mood:'😊 Positive'},
+      {kws:['hesitant','unsure','needs time'],mood:'😐 Uncertain'},
+      {kws:['another offer','counter','delayed'],mood:'😟 At Risk'},
+      {kws:['dropped','rejected','declined'],mood:'❌ Withdrawn'},
+    ];
+    for(const m of moodMap){if(m.kws.some(k=>notes.includes(k))){mood=m.mood;break;}}
+  }
+
+  const lastContact2=lastContact?Math.floor((today-lastContact)/(1000*60*60*24)):null;
+  const recruiterGap=lastContact2!==null?`${lastContact2}d ago`:'Never';
+
+  const actionMap={
+    'Critical':{label:'🚨 Escalate Immediately',priority:1},
+    'Watch':{label:'📞 Call Today',priority:2},
+    'Normal':{label:'✉️ Send Follow-up',priority:3}
+  };
+  const action=actionMap[escalation];
+
+  if(changes.length===0)changes.push({text:'Candidate tracking active — no significant behavioral changes detected',type:'normal'});
+
+  return{riskScore,riskLevel,joinProb,escalation,mood,recruiterGap,action,reasons,changes,hasFollowup:!!fup};
+}
+
+/* ======================================================
+   STATS CARDS
+====================================================== */
+function renderStats(){
+  const high=candidates.filter(c=>calcRisk(c).riskLevel==='High').length;
+  const needFollowup=candidates.filter(c=>{
+    const last=c.lastContacted?new Date(c.lastContacted):null;
+    if(!last)return true;
+    return Math.floor((new Date()-last)/(86400000))>=3;
+  }).length;
+  const confirmed=candidates.filter(c=>c.stage==='Joined').length;
+
+  const cards=[
+    {label:'Total Candidates',value:candidates.length,icon:'👥',cls:'stat-1',change:`${candidates.length>0?'+'+candidates.length:0} total`,filter:'all'},
+    {label:'High Risk',value:high,icon:'⚠️',cls:'stat-2',change:high>0?'Immediate attention':'All good',filter:'high'},
+    {label:'Need Follow-up',value:needFollowup,icon:'📋',cls:'stat-3',change:'3+ days inactive',filter:'followup'},
+    {label:'Confirmed',value:confirmed,icon:'✅',cls:'stat-4',change:'Joining confirmed',filter:'confirmed'},
+  ];
+
+  const grid=document.getElementById('stats-grid');
+  grid.innerHTML=cards.map((c,i)=>`
+    <div class="stat-card ${c.cls}${activeFilter===c.filter?' active-filter':''}" style="animation-delay:${i*0.08}s" onclick="toggleFilter('${c.filter}')">
+      <div class="stat-icon">${c.icon}</div>
+      <div class="stat-label">${c.label}</div>
+      <div class="stat-value" id="sv-${i}">${c.value}</div>
+      <div class="stat-sub">${c.change}</div>
+    </div>
+  `).join('');
+
+  document.getElementById('nav-badge-cand').textContent=candidates.length;
+  document.getElementById('nav-badge-fu').textContent=needFollowup;
+}
+
+function toggleFilter(f){
+  activeFilter=activeFilter===f?null:f;
+  renderStats();
+  renderTable();
+}
+
+/* ======================================================
+   CANDIDATE TABLE
+====================================================== */
+function getFilteredCandidates(searchId='search-input'){
+  let list=[...candidates];
+  
+  if(activeFilter==='high')list=list.filter(c=>calcRisk(c).riskLevel==='High');
+  else if(activeFilter==='followup')list=list.filter(c=>{
+    const last=c.lastContacted?new Date(c.lastContacted):null;
+    if(!last)return true;
+    return Math.floor((new Date()-last)/86400000)>=3;
+  });
+  else if(activeFilter==='confirmed')list=list.filter(c=>c.stage==='Joined');
+
+  const q=(document.getElementById(searchId)||{}).value?.toLowerCase()||'';
+  const rec=(document.getElementById('filter-recruiter')||{}).value||'';
+  const stg=(document.getElementById('filter-stage')||{}).value||'';
+  const risk=(document.getElementById('filter-risk')||{}).value||'';
+  const sort=(document.getElementById('sort-by')||{}).value||'esc_desc';
+
+  if(q)list=list.filter(c=>(c.name+c.role+c.recruiter+c.phone).toLowerCase().includes(q));
+  if(rec)list=list.filter(c=>c.recruiter===rec);
+  if(stg)list=list.filter(c=>c.stage===stg);
+  if(risk)list=list.filter(c=>calcRisk(c).riskLevel===risk);
+
+  list.sort((a,b)=>{
+    if(sort==='esc_desc')return calcRisk(b).riskScore-calcRisk(a).riskScore;
+    if(sort==='name_asc')return a.name.localeCompare(b.name);
+    if(sort==='doj_asc'){
+      const da=a.doj?new Date(a.doj):new Date('9999');
+      const db=b.doj?new Date(b.doj):new Date('9999');
+      return da-db;
+    }
+    return 0;
+  });
+  return list;
+}
+
+function renderTableInto(tbodyId,list){
+  const tbody=document.getElementById(tbodyId);
+  if(!tbody)return;
+  if(!list.length){tbody.innerHTML=`<tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--text-muted)">No candidates found.</td></tr>`;return;}
+  tbody.innerHTML=list.map(c=>{
+    const r=calcRisk(c);
+    const initials=c.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const stageCls={
+      'Offer Released':'stage-interview',
+      'Offer Accepted':'stage-offer',
+      'Offer Follow-up':'stage-interview',
+      'DOJ Confirmation':'stage-confirmed',
+      'Documents Pending':'stage-docs',
+      'Joined':'stage-confirmed',
+      'Offer Dropped':'stage-docs'
+    }[c.stage]||'stage-interview';
+    const riskCls=r.riskLevel==='High'?'risk-high':r.riskLevel==='Medium'?'risk-medium':'risk-low';
+    const escCls=r.escalation==='Critical'?'esc-critical':r.escalation==='Watch'?'esc-watch':'esc-normal';
+    const probColor=r.joinProb>=70?'var(--success)':r.joinProb>=40?'var(--warning)':'var(--danger)';
+    const dojFmt=c.doj?new Date(c.doj).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}):'—';
+    return `<tr>
+      <td><div class="candidate-cell"><div class="cand-avatar">${initials}</div><div><div class="cand-name">${esc(c.name)}</div><div style="font-size:.68rem;color:var(--text-muted)">${r.mood}</div></div></div></td>
+      <td style="color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:.75rem">${esc(c.phone||'—')}</td>
+      <td style="font-size:.8rem;color:var(--text-muted)">${esc(c.role||'—')}</td>
+      <td style="font-size:.8rem">${esc(c.recruiter||'—')}</td>
+      <td><span class="stage-badge ${stageCls}">${esc(c.stage)}</span></td>
+      <td style="font-size:.78rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace">${dojFmt}</td>
+      <td><span class="risk-badge ${riskCls}">${r.riskLevel==='High'?'🔴':r.riskLevel==='Medium'?'🟡':'🟢'} ${r.riskLevel}</span></td>
+      <td><div class="prob-bar-wrap"><div class="prob-bar"><div class="prob-fill" style="width:${r.joinProb}%;background:${probColor}"></div></div><span style="font-size:.72rem;color:${probColor};font-weight:600;font-family:'JetBrains Mono',monospace">${r.joinProb}%</span></div></td>
+      <td><span class="esc-badge ${escCls}">${r.escalation}</span></td>
+      <td><div class="actions-cell">
+        <button class="btn btn-primary btn-sm" onclick="openCC('${c.id}')">🤖 AI Center</button>
+        <button class="btn btn-secondary btn-sm" onclick="openEditModal('${c.id}')">✏️ Edit</button>
+        <button class="btn btn-secondary btn-sm" onclick="openQuestionnaire('${c.id}')" title="Follow-up Form" style="position:relative">${(c.followup&&c.followup.filledAt)?'📋':'📝'} ${(c.followup&&c.followup.filledAt)?'Update':'Follow-up'}</button>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="deleteCandidate('${c.id}')" title="Delete">🗑</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTable(){
+  const list=getFilteredCandidates('search-input');
+  renderTableInto('candidate-tbody',list);
+  const cnt=document.getElementById('cand-count-label');
+  if(cnt)cnt.textContent=`${list.length} candidate${list.length!==1?'s':''}`;
+  updateRecruiterFilter();
+  const es=document.getElementById('empty-state');
+  if(es){if(!candidates.length)es.classList.remove('hidden');else es.classList.add('hidden');}
+  renderStats();
+}
+
+function renderTable2(){
+  const q=(document.getElementById('search-input-2')||{}).value?.toLowerCase()||'';
+  let list=[...candidates];
+  if(q)list=list.filter(c=>(c.name+c.role+c.recruiter).toLowerCase().includes(q));
+  renderTableInto('candidate-tbody-2',list);
+}
+
+function updateRecruiterFilter(){
+  const recruiters=[...new Set(candidates.map(c=>c.recruiter).filter(Boolean))];
+  const sel=document.getElementById('filter-recruiter');
+  if(!sel)return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">All Recruiters</option>'+recruiters.map(r=>`<option value="${esc(r)}"${r===cur?'selected':''}>${esc(r)}</option>`).join('');
+}
+
+function updateNavBadges(){
+  document.getElementById('nav-badge-cand').textContent=candidates.length;
+  const fu=candidates.filter(c=>{const l=c.lastContacted?new Date(c.lastContacted):null;if(!l)return true;return Math.floor((new Date()-l)/86400000)>=3;}).length;
+  document.getElementById('nav-badge-fu').textContent=fu;
+}
+
+/* ======================================================
+   ADD / DELETE
+====================================================== */
+function addCandidate(){
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){toast('Candidate name is required.','error');return;}
+  const c={
+    id:'c_'+Date.now()+'_'+Math.random().toString(36).slice(2),
+    name,
+    phone:document.getElementById('f-phone').value.trim(),
+    role:document.getElementById('f-role').value.trim(),
+    recruiter:document.getElementById('f-recruiter').value.trim(),
+    stage:document.getElementById('f-stage').value,
+    lastContacted:document.getElementById('f-last').value,
+    doj:document.getElementById('f-doj').value,
+    notes:document.getElementById('f-notes').value.trim(),
+    addedAt:new Date().toISOString(),
+    addedBy:currentUser?currentUser.name:'Unknown'
+  };
+  // Attach ORA assessment if any fields filled
+  const oraNotes=document.getElementById('ora-notes')?document.getElementById('ora-notes').value.trim():'';
+  if(Object.keys(oraState).length>0||oraNotes){
+    c.followup={...oraState,recruiter_notes:oraNotes,filledAt:new Date().toISOString()};
+  }
+  candidates.unshift(c);
+  saveData();
+  // Log activity
+  logActivity({
+    type:'add',
+    recruiter:c.recruiter||currentUser.name,
+    message:`Added candidate <strong>${c.name}</strong> — ${c.stage}`,
+    candidateId:c.id,
+    ts:new Date().toISOString()
+  });
+  // Queue manager notification
+  queueManagerNotification({
+    type:'new_candidate',
+    recruiter:c.recruiter||currentUser.name,
+    candidateName:c.name,
+    role:c.role,
+    stage:c.stage,
+    ts:new Date().toISOString(),
+    read:false
+  });
+  // Send email notification to manager
+  sendManagerUpdateEmail(c);
+  ['f-name','f-phone','f-role','f-recruiter','f-last','f-doj','f-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-stage').value='Offer Released';
+  resetORA();
+  renderAll();
+  toast(`${name} added to intelligence pipeline.`,'success');
+}
+
+function deleteCandidate(id){
+  const c=candidates.find(x=>x.id===id);
+  if(!c)return;
+  if(!confirm(`Remove ${c.name} from the pipeline?`))return;
+  candidates=candidates.filter(x=>x.id!==id);
+  saveData();
+  renderAll();
+  toast(`${c.name} removed.`,'info');
+}
+
+/* ======================================================
+   DEMO DATA
+====================================================== */
+function loadDemoData(){
+  const demos=[
+    {name:'Priya Sharma',phone:'+91 98765 43210',role:'Senior Software Engineer',recruiter:'Rahul Mehta',stage:'Offer Accepted',lastContacted:daysAgo(5),doj:daysAhead(10),notes:'Another offer from competing company. Seems hesitant about relocation.'},
+    {name:'Arjun Nair',phone:'+91 87654 32109',role:'Product Manager',recruiter:'Sneha Kapoor',stage:'Offer Follow-up',lastContacted:daysAgo(2),doj:daysAhead(25),notes:'Very excited about the role. Confirmed availability.'},
+    {name:'Meera Patel',phone:'+91 76543 21098',role:'Data Scientist',recruiter:'Rahul Mehta',stage:'Documents Pending',lastContacted:daysAgo(7),doj:daysAhead(5),notes:'Delayed response to document requests. Needs time to decide.'},
+    {name:'Vikram Singh',phone:'+91 65432 10987',role:'DevOps Engineer',recruiter:'Anita Rao',stage:'Joined',lastContacted:daysAgo(1),doj:daysAhead(3),notes:'Confirmed joining. Documents submitted.'},
+    {name:'Kavitha Reddy',phone:'+91 54321 09876',role:'UX Designer',recruiter:'Sneha Kapoor',stage:'Offer Accepted',lastContacted:daysAgo(4),doj:daysAhead(8),notes:'Counter offer received from current employer. Unsure about leaving.'},
+    {name:'Rohit Kumar',phone:'+91 43210 98765',role:'Backend Engineer',recruiter:'Anita Rao',stage:'Offer Follow-up',lastContacted:daysAgo(1),doj:daysAhead(30),notes:'Enthusiastic candidate. Strong engagement.'},
+    {name:'Deepa Iyer',phone:'+91 32109 87654',role:'Frontend Developer',recruiter:'Rahul Mehta',stage:'Documents Pending',lastContacted:daysAgo(6),doj:daysAhead(12),notes:'Delayed response. Mentioned another offer from startup.'},
+    {name:'Sanket Joshi',phone:'+91 21098 76543',role:'ML Engineer',recruiter:'Anita Rao',stage:'Offer Accepted',lastContacted:daysAgo(3),doj:daysAhead(15),notes:''},
+  ];
+  const existing=new Set(candidates.map(c=>c.name));
+  let added=0;
+  demos.forEach(d=>{
+    if(!existing.has(d.name)){
+      candidates.unshift({...d,id:'c_'+Date.now()+'_'+Math.random().toString(36).slice(2),addedAt:new Date().toISOString()});
+      added++;
+    }
+  });
+  saveData();renderAll();
+  toast(`${added} demo candidates loaded successfully.`,'success');
+}
+
+function daysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().slice(0,10)}
+function daysAhead(n){const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)}
+
+/* ======================================================
+   FILE UPLOAD
+====================================================== */
+function handleFileUpload(e){
+  const file=e.target.files[0];
+  if(!file){return;}
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const wb=XLSX.read(ev.target.result,{type:'binary'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const data=XLSX.utils.sheet_to_json(ws,{defval:''});
+      let added=0;
+      data.forEach(row=>{
+        const name=(row['Candidate Name']||row['Name']||'').trim();
+        if(!name)return;
+        candidates.unshift({
+          id:'c_'+Date.now()+'_'+Math.random().toString(36).slice(2),
+          name,
+          phone:(row['Phone Number']||row['Phone']||'').toString(),
+          role:(row['Role']||'').toString(),
+          recruiter:(row['Recruiter Name']||row['Recruiter']||'').toString(),
+          stage:(row['Current Stage']||row['Stage']||'Interview Scheduled').toString(),
+          lastContacted:(row['Last Contacted Date']||row['Last Contacted']||'').toString(),
+          doj:(row['Important Date']||row['DOJ']||'').toString(),
+          notes:(row['Notes']||row['Candidate Notes']||'').toString(),
+          addedAt:new Date().toISOString()
+        });
+        added++;
+      });
+      saveData();renderAll();
+      toast(`${added} candidates imported from file.`,'success');
+    }catch(err){toast('File parsing error. Please check the format.','error');}
+  };
+  reader.readAsBinaryString(file);
+  e.target.value='';
+}
+
+/* ======================================================
+   PRIORITY QUEUE
+====================================================== */
+function getPriorityItems(){
+  return candidates.map(c=>{
+    const r=calcRisk(c);
+    return{candidate:c,risk:r};
+  }).filter(x=>x.risk.riskLevel!=='Low'||x.risk.escalation!=='Normal')
+    .sort((a,b)=>b.risk.riskScore-a.risk.riskScore)
+    .slice(0,12);
+}
+
+function renderPriorityQueue(){
+  const items=getPriorityItems();
+  const pqHtml=items.map(({candidate:c,risk:r})=>{
+    const pCls=r.escalation==='Critical'?'pq-p1':r.escalation==='Watch'?'pq-p2':'pq-p3';
+    return `<div class="pq-item" onclick="openCC('${c.id}')">
+      <div class="pq-priority ${pCls}"></div>
+      <div class="flex-col flex-col" style="flex:1;gap:.1rem">
+        <div class="pq-text">${r.action.label}</div>
+        <div class="pq-cand">${esc(c.name)} · ${esc(c.role||'—')} · ${esc(c.recruiter||'—')}</div>
+      </div>
+      <div class="flex gap-2 items-center">
+        <span style="font-size:.7rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace">${r.recruiterGap}</span>
+        <span class="risk-badge ${r.riskLevel==='High'?'risk-high':r.riskLevel==='Medium'?'risk-medium':'risk-low'}">${r.joinProb}%</span>
+      </div>
+    </div>`;
+  }).join('');
+  
+  const prev=document.getElementById('pq-preview');
+  if(prev)prev.innerHTML=pqHtml||'<div class="empty-state"><div class="empty-icon">✅</div><p>No urgent actions required.</p></div>';
+  const full=document.getElementById('pq-full');
+  if(full)full.innerHTML=pqHtml||'<div class="empty-state"><div class="empty-icon">✅</div><p>All candidates are on track!</p></div>';
+  
+  // Follow-up list
+  const fuList=document.getElementById('followup-list');
+  if(fuList){
+    const fu=candidates.filter(c=>{const l=c.lastContacted?new Date(c.lastContacted):null;if(!l)return true;return Math.floor((new Date()-l)/86400000)>=3;});
+    fuList.innerHTML=fu.map(c=>{
+      const r=calcRisk(c);
+      const last=c.lastContacted?Math.floor((new Date()-new Date(c.lastContacted))/86400000):null;
+      return `<div class="pq-item" onclick="openCC('${c.id}')">
+        <div class="pq-priority ${r.escalation==='Critical'?'pq-p1':'pq-p2'}"></div>
+        <div style="flex:1">
+          <div class="pq-text">${esc(c.name)} — ${esc(c.stage)}</div>
+          <div class="pq-cand">${esc(c.recruiter||'Unknown recruiter')} · Last contact: ${last!==null?last+'d ago':'Never'}</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openCC('${c.id}')">🤖 Act Now</button>
+      </div>`;
+    }).join('')||'<div class="empty-state"><div class="empty-icon">✅</div><p>All candidates have been recently contacted!</p></div>';
+  }
+}
+
+/* ======================================================
+   ANALYTICS
+====================================================== */
+function renderAnalytics(){
+  const grid=document.getElementById('analytics-grid');
+  if(!grid)return;
+  const total=candidates.length||1;
+  const high=candidates.filter(c=>calcRisk(c).riskLevel==='High').length;
+  const confirmed=candidates.filter(c=>c.stage==='Joined').length;
+  const avgProb=candidates.length?Math.round(candidates.reduce((s,c)=>s+calcRisk(c).joinProb,0)/candidates.length):0;
+  const hiringHealth=Math.max(10,100-Math.round(high/total*100));
+  const escCount=candidates.filter(c=>calcRisk(c).escalation==='Critical').length;
+  
+  const metrics=[
+    {label:'Hiring Health Score',value:hiringHealth+'%',color:'var(--success)',bars:[72,65,80,hiringHealth,hiringHealth-5,hiringHealth+3,hiringHealth]},
+    {label:'Avg Join Probability',value:avgProb+'%',color:'var(--accent2)',bars:[60,65,55,70,avgProb-5,avgProb+2,avgProb]},
+    {label:'High Risk Candidates',value:high,color:'var(--danger2)',bars:[1,2,1,high+1,high,high-1,high]},
+    {label:'Confirmed Joiners',value:confirmed,color:'var(--success)',bars:[0,1,2,confirmed-1,confirmed,confirmed,confirmed]},
+    {label:'Active Escalations',value:escCount,color:'var(--warning)',bars:[0,1,0,escCount,escCount+1,escCount,escCount]},
+    {label:'Recruiter Efficiency',value:'78%',color:'var(--accent)',bars:[70,72,68,75,78,76,78]},
+  ];
+
+  grid.innerHTML=metrics.map(m=>{
+    const maxBar=Math.max(...m.bars,1);
+    return `<div class="analytics-card">
+      <div class="a-label">${m.label}</div>
+      <div class="a-value" style="color:${m.color}">${m.value}</div>
+      <div class="a-chart">
+        ${m.bars.map((v,i)=>`<div class="bar-col" style="height:${Math.max(4,Math.round(v/maxBar*100))}%;background:${i===m.bars.length-1?m.color:'rgba(255,255,255,.12)'}"></div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ======================================================
+   HEATMAP
+====================================================== */
+function renderHeatmap(){
+  const grid=document.getElementById('heatmap-grid');
+  if(!grid)return;
+  const recruiterMap={};
+  candidates.forEach(c=>{
+    const r=c.recruiter||'Unknown';
+    if(!recruiterMap[r])recruiterMap[r]={name:r,high:0,total:0,escCount:0};
+    recruiterMap[r].total++;
+    const risk=calcRisk(c);
+    if(risk.riskLevel==='High')recruiterMap[r].high++;
+    if(risk.escalation==='Critical')recruiterMap[r].escCount++;
+  });
+
+  const recruiters=Object.values(recruiterMap);
+  if(!recruiters.length){grid.innerHTML='<div style="color:var(--text-muted);font-size:.85rem;padding:1rem">No recruiter data available. Add candidates first.</div>';return;}
+
+  grid.innerHTML=recruiters.map(r=>{
+    const pct=r.total?Math.round(r.high/r.total*100):0;
+    const cls=pct>=60?'hm-red':pct>=30?'hm-yellow':'hm-green';
+    const scoreColor=pct>=60?'var(--danger2)':pct>=30?'var(--warning)':'var(--success)';
+    const effScore=Math.max(40,100-pct);
+    return `<div class="hm-cell ${cls}">
+      <div class="hm-name">${esc(r.name)}</div>
+      <div class="hm-score" style="color:${scoreColor}">${pct}%</div>
+      <div class="hm-meta">risk load</div>
+      <div style="margin-top:.5rem;font-size:.7rem">
+        <div style="color:var(--text-muted)">Efficiency: <strong style="color:${scoreColor}">${effScore}%</strong></div>
+        <div style="color:var(--text-muted)">${r.total} candidates · ${r.escCount} escalations</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ======================================================
+   HEALTH SCORE
+====================================================== */
+function renderHealthScore(){
+  const area=document.getElementById('health-score-area');
+  if(!area)return;
+  const total=candidates.length||1;
+  const high=candidates.filter(c=>calcRisk(c).riskLevel==='High').length;
+  const score=Math.max(10,100-Math.round(high/total*80));
+  const r=55,cx=60,cy=60,circ=2*Math.PI*r,dashArr=circ*score/100;
+  const color=score>=70?'var(--success)':score>=45?'var(--warning)':'var(--danger)';
+
+  area.innerHTML=`
+    <div class="hiring-health-score">
+      <div class="hhs-ring">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="8"/>
+          <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="8"
+            stroke-dasharray="${dashArr} ${circ}" stroke-linecap="round" style="filter:drop-shadow(0 0 8px ${color})"/>
+        </svg>
+        <div class="hhs-score-text">
+          <div class="hhs-score" style="color:${color}">${score}</div>
+          <div class="hhs-label">Score</div>
+        </div>
+      </div>
+      <div class="hhs-details">
+        <div class="hhs-title">Hiring Health: ${score>=70?'Good':score>=45?'Fair':'Critical'}</div>
+        <div class="hhs-desc">${score>=70?'Pipeline is healthy. Continue monitoring high-risk candidates.':score>=45?'Moderate risk detected. Escalation management recommended.':'Critical hiring risk detected. Immediate recruiter action required.'}</div>
+        <div class="hhs-metrics">
+          <div class="hhs-metric">Pipeline <span class="hhs-metric-val">${candidates.length}</span></div>
+          <div class="hhs-metric">High Risk <span class="hhs-metric-val" style="color:var(--danger2)">${high}</span></div>
+          <div class="hhs-metric">Confirmed <span class="hhs-metric-val" style="color:var(--success)">${candidates.filter(c=>c.stage==='Joined').length}</span></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderBottlenecks(){
+  const area=document.getElementById('bottleneck-area');
+  if(!area)return;
+  const stages={'Offer Released':0,'Offer Accepted':0,'Offer Follow-up':0,'DOJ Confirmation':0,'Documents Pending':0,'Joined':0,'Offer Dropped':0};
+  candidates.forEach(c=>{if(stages[c.stage]!==undefined)stages[c.stage]++;});
+  const max=Math.max(...Object.values(stages),1);
+  area.innerHTML=`<div class="bottleneck-items">`+Object.entries(stages).map(([s,n])=>`
+    <div class="bottleneck-item">
+      <div class="bottleneck-stage">${s}</div>
+      <div class="bottleneck-bar-wrap"><div class="bottleneck-bar" style="width:${Math.round(n/max*100)}%"></div></div>
+      <div class="bottleneck-count">${n}</div>
+    </div>`).join('')+'</div>';
+}
+
+function renderEscalationOverview(){
+  const list=document.getElementById('escalation-list');
+  if(!list)return;
+  const critical=candidates.filter(c=>calcRisk(c).escalation==='Critical');
+  list.innerHTML=critical.map(c=>{
+    const r=calcRisk(c);
+    return `<div class="pq-item" onclick="openCC('${c.id}')">
+      <div class="pq-priority pq-p1"></div>
+      <div style="flex:1">
+        <div class="pq-text">${esc(c.name)} — <span style="color:var(--danger2)">Critical Escalation</span></div>
+        <div class="pq-cand">${esc(c.recruiter||'—')} · Risk Score: ${r.riskScore}% · ${r.reasons[0]||'Multiple risk factors'}</div>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();openCC('${c.id}')">🚨 View</button>
+    </div>`;
+  }).join('')||'<div class="empty-state"><div class="empty-icon">✅</div><p>No critical escalations at this time.</p></div>';
+}
+
+/* ======================================================
+   AI COMMAND CENTER
+====================================================== */
+function openCC(id){
+  const c=candidates.find(x=>x.id===id);
+  if(!c)return;
+  const r=calcRisk(c);
+  const modal=document.getElementById('cc-modal');
+  const body=document.getElementById('cc-body');
+  document.getElementById('cc-cand-name').textContent='— '+c.name;
+  
+  const scoreColor=r.riskLevel==='High'?'var(--danger2)':r.riskLevel==='Medium'?'var(--warning)':'var(--success)';
+  const escCirc=2*Math.PI*45;
+  const escDash=escCirc*r.riskScore/100;
+  const probCirc=2*Math.PI*45;
+  const probDash=probCirc*r.joinProb/100;
+
+  // Build timeline items
+  const tls=buildTimeline(c,r);
+  // Build messages
+  const msgs=buildMessages(c,r);
+  const escalationMail=buildEscalationMail(c,r);
+  
+  body.innerHTML=`
+    <!-- ROW 1: Score rings + Escalation Predictor -->
+    <div class="cc-section cc-full" style="display:grid;grid-template-columns:auto auto 1fr;gap:1.5rem;align-items:start">
+      <!-- Risk ring -->
+      <div style="text-align:center">
+        <div style="position:relative;width:110px;height:110px;margin:0 auto">
+          <svg width="110" height="110" viewBox="0 0 110 110" style="transform:rotate(-90deg)">
+            <circle cx="55" cy="55" r="45" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="8"/>
+            <circle cx="55" cy="55" r="45" fill="none" stroke="${scoreColor}" stroke-width="8"
+              stroke-dasharray="${escDash} ${escCirc}" stroke-linecap="round" style="filter:drop-shadow(0 0 8px ${scoreColor});transition:stroke-dasharray 1s ease"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <div style="font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:${scoreColor}">${r.riskScore}%</div>
+            <div style="font-size:.6rem;color:var(--text-muted);text-transform:uppercase">Drop Risk</div>
+          </div>
+        </div>
+        <div style="font-size:.75rem;color:${scoreColor};font-weight:600;margin-top:.35rem">${r.riskLevel} Risk</div>
+      </div>
+      <!-- Join prob ring -->
+      <div style="text-align:center">
+        <div style="position:relative;width:110px;height:110px;margin:0 auto">
+          <svg width="110" height="110" viewBox="0 0 110 110" style="transform:rotate(-90deg)">
+            <circle cx="55" cy="55" r="45" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="8"/>
+            <circle cx="55" cy="55" r="45" fill="none" stroke="${r.joinProb>=60?'var(--success)':'var(--warning)'}" stroke-width="8"
+              stroke-dasharray="${probDash} ${probCirc}" stroke-linecap="round" style="filter:drop-shadow(0 0 8px var(--success))"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <div style="font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:${r.joinProb>=60?'var(--success)':'var(--warning)'}">${r.joinProb}%</div>
+            <div style="font-size:.6rem;color:var(--text-muted);text-transform:uppercase">Join Prob</div>
+          </div>
+        </div>
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:.35rem">${r.mood}</div>
+      </div>
+      <!-- Escalation reasons -->
+      <div>
+        <div class="cc-section-title">⚠️ Escalation Predictor</div>
+        <div class="esc-reasons">
+          ${r.reasons.slice(0,4).map(reason=>`<div class="esc-reason"><span class="esc-reason-icon">⚡</span>${esc(reason)}</div>`).join('')}
+        </div>
+        <div style="margin-top:.75rem;padding:.5rem .75rem;background:rgba(200,146,26,.1);border:1px solid rgba(37,99,255,.2);border-radius:8px;font-size:.78rem">
+          <strong style="color:var(--accent2)">AI Recommendation:</strong> <span style="color:var(--text)">${r.action.label}</span>
+          <br><span style="color:var(--text-muted);font-size:.7rem">Recruiter gap: ${r.recruiterGap}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- QUESTIONNAIRE SUMMARY ROW -->
+    ${c.followup ? `
+    <div class="cc-section cc-full">
+      <div class="cc-section-title" style="justify-content:space-between">
+        <span>📋 Follow-up Questionnaire Summary</span>
+        <button class="btn btn-secondary btn-sm" onclick="closeCC();setTimeout(()=>openQuestionnaire('${c.id}'),200)">✏️ Update</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem">
+        ${[
+          {label:'Counter Offer',val:c.followup.counter_offer,danger:['Yes','May Be'],success:['No']},
+          {label:'Response Speed',val:c.followup.response_speed,danger:['Slow'],success:['Fast'],warn:['Medium']},
+          {label:'Enthusiasm',val:c.followup.enthusiasm,danger:['Low'],success:['High'],warn:['Medium']},
+          {label:'Competing Offers',val:c.followup.competing_offers,danger:['Yes'],success:['No']},
+          {label:'Relocation Concern',val:c.followup.relocation_concern,danger:['Yes'],success:['No']},
+          {label:'Docs Status',val:c.followup.docs_status,danger:['Pending'],success:['Complete'],warn:['Partial']},
+          {label:'Joining Confidence',val:c.followup.joining_confidence,danger:['Weak'],success:['Strong'],warn:['Moderate']},
+        ].filter(f=>f.val).map(f=>{
+          const isDanger=(f.danger||[]).includes(f.val);
+          const isSuccess=(f.success||[]).includes(f.val);
+          const isWarn=(f.warn||[]).includes(f.val);
+          const col=isDanger?'var(--danger)':isSuccess?'var(--success)':isWarn?'var(--warning)':'var(--text-muted)';
+          const bg=isDanger?'rgba(224,96,96,.08)':isSuccess?'rgba(126,196,126,.08)':isWarn?'rgba(232,160,40,.08)':'rgba(255,255,255,.03)';
+          const bc=isDanger?'rgba(224,96,96,.2)':isSuccess?'rgba(126,196,126,.2)':isWarn?'rgba(232,160,40,.2)':'var(--border)';
+          return `<div style="padding:.6rem .8rem;background:${bg};border:1px solid ${bc};border-radius:8px">
+            <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:.2rem;font-weight:700">${f.label}</div>
+            <div style="font-size:.85rem;font-weight:600;color:${col}">${f.val}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      ${c.followup.recruiter_notes?`<div style="margin-top:.75rem;padding:.65rem .85rem;background:rgba(255,255,255,.025);border:1px solid var(--border);border-radius:8px;font-size:.78rem;color:var(--text)"><strong style="color:var(--text-muted);font-size:.65rem;text-transform:uppercase;letter-spacing:.07em">Recruiter Notes</strong><br>${esc(c.followup.recruiter_notes)}</div>`:''}
+      <div style="margin-top:.6rem;font-size:.68rem;color:var(--text-muted)">Filled: ${new Date(c.followup.filledAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})}</div>
+    </div>` : `
+    <div class="cc-section cc-full" style="text-align:center;padding:1.25rem">
+      <div style="font-size:1.5rem;margin-bottom:.5rem">📋</div>
+      <div style="font-size:.85rem;color:var(--text);margin-bottom:.75rem">No follow-up questionnaire filled yet for this candidate.</div>
+      <button class="btn btn-primary" onclick="closeCC();setTimeout(()=>openQuestionnaire('${c.id}'),200)">📝 Fill Questionnaire Now</button>
+    </div>`}
+
+    <!-- ROW 2: Timeline + What Changed -->
+    <div class="cc-section">
+      <div class="cc-section-title">🎬 Candidate Journey Timeline</div>
+      <button class="btn btn-primary btn-sm" onclick="playTimeline()" style="margin-bottom:.85rem">▶ Play Journey</button>
+      <div class="timeline" id="cc-timeline">
+        ${tls.map((t,i)=>`<div class="tl-item" id="tl-${i}" style="transition-delay:${i*0.15}s">
+          <div class="tl-dot tl-dot-${t.color}"></div>
+          <div class="tl-content">
+            <div class="tl-event">${t.event}</div>
+            <div class="tl-time">${t.time}</div>
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="cc-section">
+      <div class="cc-section-title">🧠 What Changed — AI Behavioral Analysis</div>
+      <div class="change-items">
+        ${r.changes.map(ch=>`<div class="change-item ${ch.type}">
+          ${esc(ch.text)}
+          <span>${new Date().toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})}</span>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- ROW 3: Message Generator + Escalation Mail -->
+    <div class="cc-section">
+      <div class="cc-section-title">✉️ AI Follow-up Message Generator</div>
+      <div class="msg-type-tabs" id="msg-tabs">
+        <button class="msg-tab active" onclick="setMsgType(this,'offer_followup',${JSON.stringify(msgs.offer_followup).replace(/"/g,"'")})">Offer Follow-up</button>
+        <button class="msg-tab" onclick="setMsgType(this,'offer',${JSON.stringify(msgs.offer).replace(/"/g,"'")})">Offer Nudge</button>
+        <button class="msg-tab" onclick="setMsgType(this,'joining',${JSON.stringify(msgs.joining).replace(/"/g,"'")})">Joining Reminder</button>
+        <button class="msg-tab" onclick="setMsgType(this,'docs',${JSON.stringify(msgs.docs).replace(/"/g,"'")})">Docs Reminder</button>
+      </div>
+      <div class="msg-box" id="msg-box">${esc(msgs.offer_followup)}</div>
+      <div class="msg-actions">
+        <button class="btn btn-secondary btn-sm" onclick="copyText('msg-box')">📋 Copy Message</button>
+        <button class="btn btn-primary btn-sm" onclick="openEmailFromCC('followup','${c.id}')">📤 Send as Email</button>
+      </div>
+    </div>
+
+    <div class="cc-section">
+      <div class="cc-section-title">🚨 AI Escalation Email Generator</div>
+      <div class="msg-box" style="min-height:180px;font-family:'JetBrains Mono',monospace;font-size:.75rem;line-height:1.7" id="esc-mail-box">${esc(escalationMail)}</div>
+      <div class="msg-actions">
+        <button class="btn btn-danger btn-sm" onclick="copyText('esc-mail-box')">📋 Copy Email</button>
+        <button class="btn btn-primary btn-sm" onclick="openEmailFromCC('escalation','${c.id}')">🚨 Send Escalation Email</button>
+      </div>
+    </div>
+  `;
+
+  modal.classList.remove('hidden');
+  document.body.style.overflow='hidden';
+  setTimeout(()=>playTimeline(),500);
+}
+
+function buildTimeline(c,r){
+  const today=new Date();
+  const events=[];
+  events.push({event:'Candidate added to offer pipeline',color:'blue',time:c.addedAt?new Date(c.addedAt).toLocaleDateString('en-IN',{dateStyle:'medium'}):'Recently added'});
+  events.push({event:'Offer Released to Candidate',color:'purple',time:'Offer stage initiated'});
+  if(['Offer Accepted','DOJ Confirmation','Documents Pending','Joined'].includes(c.stage))
+    events.push({event:'✅ Offer Accepted by Candidate',color:'success',time:'Offer acceptance confirmed'});
+  if(c.lastContacted)
+    events.push({event:'Last recruiter follow-up logged',color:'blue',time:new Date(c.lastContacted).toLocaleDateString('en-IN',{dateStyle:'medium'})});
+  if(c.stage==='Documents Pending')
+    events.push({event:'📄 Documents Pending — action required',color:'warning',time:'Document collection stage'});
+  if(c.stage==='DOJ Confirmation')
+    events.push({event:'📅 DOJ Confirmation in progress',color:'cyan',time:'Awaiting DOJ lock-in'});
+  if(r.riskScore>=45)
+    events.push({event:'⚠️ AI Offer Drop Risk Detected',color:'warning',time:'AI Analysis — '+today.toLocaleDateString('en-IN',{dateStyle:'medium'})});
+  if(r.escalation==='Critical')
+    events.push({event:'🚨 Escalation Warning Triggered',color:'danger',time:'Critical risk threshold crossed'});
+  if(c.stage==='Joined')
+    events.push({event:'🎉 Candidate Successfully Joined',color:'success',time:c.doj?new Date(c.doj).toLocaleDateString('en-IN',{dateStyle:'medium'}):'DOJ confirmed'});
+  if(c.stage==='Offer Dropped')
+    events.push({event:'❌ Offer Dropped by Candidate',color:'danger',time:'Candidate withdrew from offer'});
+  events.push({event:r.action.label+' — AI Recommended Action',color:'cyan',time:'Action required: Now'});
+  return events;
+}
+
+function buildMessages(c,r){
+  const dojStr=c.doj?new Date(c.doj).toLocaleDateString('en-IN',{dateStyle:'long'}):'upcoming date';
+  return{
+    offer_followup:`Hi ${c.name},\n\nHope you're doing well! We wanted to follow up on the offer extended to you for the ${c.role||'position'} role.\n\nWe are thrilled about having you join our team and would love to address any questions or concerns you may have regarding the compensation, benefits, or joining process.\n\nCould you please confirm your acceptance at the earliest?\n\nWarm regards,\n${c.recruiter||'The Talent Team'}\nHireShield AI`,
+    offer:`Hi ${c.name},\n\nThis is a reminder that your offer for the ${c.role||'position'} role is pending your confirmation.\n\nThe offer is valid and we would appreciate a response by end of this week so we can initiate your onboarding.\n\nPlease feel free to reach out for any clarifications.\n\nBest regards,\n${c.recruiter||'The Talent Team'}`,
+    joining:`Hi ${c.name},\n\nYour joining date is approaching on ${dojStr}. We're thrilled to welcome you to the team!\n\nPlease ensure the following are ready:\n• Government-issued ID proof\n• Education & experience documents\n• Previous employment proof\n• Last 3 months' salary slips\n\nLooking forward to having you on board!\n\nBest,\n${c.recruiter||'The Talent Team'}`,
+    docs:`Hi ${c.name},\n\nWe noticed some documents are still pending for your onboarding. To keep your ${dojStr} joining date on track, please submit:\n\n• Latest pay slips (last 3 months)\n• Experience letter from previous employer\n• Education certificates\n• Relieving letter\n\nPlease share these at the earliest so we can complete your onboarding formalities.\n\nThank you!\n${c.recruiter||'HR Team'}`
+  };
+}
+
+function buildEscalationMail(c,r){
+  const today=new Date().toLocaleDateString('en-IN',{dateStyle:'full'});
+  return `TO: Hiring Manager\nCC: ${c.recruiter||'Recruiter'}\nSUBJECT: [ESCALATION] ${c.name} — ${r.riskLevel} Risk Alert — Immediate Attention Required\n\n---\n\nDear Hiring Manager,\n\nThis is an automated escalation alert generated by HireShield AI for the following candidate who has crossed the risk escalation threshold.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCANDIDATE ESCALATION REPORT\n${today}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nCandidate     : ${c.name}\nRole          : ${c.role||'N/A'}\nCurrent Stage : ${c.stage}\nAssigned To   : ${c.recruiter||'Unassigned'}\nEscalation    : ${r.escalation.toUpperCase()}\nRisk Score    : ${r.riskScore}% (Threshold: 60%)\nJoin Probability: ${r.joinProb}%\nRecruiter Gap : ${r.recruiterGap}\n\nAI DETECTED RISK FACTORS:\n${r.reasons.map((x,i)=>`${i+1}. ${x}`).join('\n')}\n\nRECOMMENDED IMMEDIATE ACTION:\n→ ${r.action.label}\n\nThis escalation was triggered because the candidate's risk score exceeded our escalation threshold. Prompt intervention by the hiring manager and recruiter is recommended to prevent offer drop.\n\nPlease schedule a direct call with the candidate and recruiter at the earliest.\n\nRegards,\nHireShield AI — Risk Intelligence Engine\nAutomated Escalation System`;
+}
+
+function playTimeline(){
+  const items=document.querySelectorAll('#cc-timeline .tl-item');
+  items.forEach(el=>el.classList.remove('visible'));
+  items.forEach((el,i)=>setTimeout(()=>el.classList.add('visible'),i*350));
+}
+
+function setMsgType(btn,type,msg){
+  document.querySelectorAll('#msg-tabs .msg-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('msg-box').textContent=msg;
+}
+
+function copyText(id){
+  const el=document.getElementById(id);
+  if(!el)return;
+  navigator.clipboard.writeText(el.textContent).then(()=>toast('Copied to clipboard!','success')).catch(()=>{
+    const ta=document.createElement('textarea');
+    ta.value=el.textContent;
+    document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();
+    toast('Copied to clipboard!','success');
+  });
+}
+
+function closeCC(){
+  document.getElementById('cc-modal').classList.add('hidden');
+  document.body.style.overflow='';
+}
+function closeCCOnOverlay(e){if(e.target===document.getElementById('cc-modal'))closeCC();}
+
+/* ======================================================
+   NAVIGATION
+====================================================== */
+function showSection(id){
+  const sections=['dashboard','candidates','followup','priority','analytics','heatmap','health','escalation','emaillog','mgrdash'];
+  sections.forEach(s=>{
+    const el=document.getElementById('section-'+s);
+    if(el)el.classList.toggle('hidden',s!==id);
+  });
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  if(id==='candidates')renderTable2();
+  if(id==='analytics')renderAnalytics();
+  if(id==='heatmap')renderHeatmap();
+  if(id==='health'){renderHealthScore();renderBottlenecks();}
+  if(id==='escalation')renderEscalationOverview();
+  if(id==='priority')renderPriorityQueue();
+  if(id==='followup')renderPriorityQueue();
+  if(id==='emaillog')renderEmailLog();
+  if(id==='mgrdash')renderManagerDashboard();
+  const titles={dashboard:'Dashboard',candidates:'Candidates',followup:'Follow-up Queue',priority:'AI Priority Queue',analytics:'Analytics',heatmap:'Recruiter Heatmap',health:'Hiring Health',escalation:'Escalation Overview',emaillog:'Email Activity Log',mgrdash:'Manager Dashboard'};
+  document.getElementById('page-title').textContent=titles[id]||'Dashboard';
+  closeSidebar();
+}
+
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('mobile-overlay').classList.add('active')}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('mobile-overlay').classList.remove('active')}
+
+function showNotifications(){
+  const crit=candidates.filter(c=>calcRisk(c).escalation==='Critical').length;
+  const fu=candidates.filter(c=>{const l=c.lastContacted?new Date(c.lastContacted):null;if(!l)return true;return Math.floor((new Date()-l)/86400000)>=3;}).length;
+  toast(`${crit} critical escalation${crit!==1?'s':''} · ${fu} follow-up${fu!==1?'s':''} pending`,'warning',4000);
+}
+
+/* ======================================================
+   HELPERS
+====================================================== */
+function esc(str){
+  if(str===null||str===undefined)return'';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ======================================================
+   EMAILJS CONFIG
+====================================================== */
+const EJS={
+  serviceId:'service_1wgqc2v',
+  templateId:'template_cpp0ywb',
+  publicKey:'qv_MZqZrjhPX4PIxA'
+};
+
+let emailLog=JSON.parse(localStorage.getItem('hs_email_log')||'[]');
+let currentEmailCandidateId=null;
+let currentEmailType='followup';
+
+function saveEmailLog(){localStorage.setItem('hs_email_log',JSON.stringify(emailLog));}
+
+/* ── Open email modal from Command Center ── */
+function openEmailFromCC(type,candidateId){
+  currentEmailCandidateId=candidateId;
+  const c=candidates.find(x=>x.id===candidateId);
+  if(!c)return;
+  const r=calcRisk(c);
+  const msgs=buildMessages(c,r);
+  const escMail=buildEmailBody(buildEscalationMail(c,r));
+  const dojStr=c.doj?new Date(c.doj).toLocaleDateString('en-IN',{dateStyle:'long'}):'upcoming date';
+
+  const bodies={
+    followup:msgs.offer_followup,
+    offer:msgs.offer,
+    joining:msgs.joining,
+    docs:msgs.docs,
+    escalation:buildEscalationMail(c,r)
+  };
+  const subjects={
+    followup:`Follow-up: ${c.name} — ${c.role||'Open Role'} | HireShield AI`,
+    offer:`Offer Reminder: ${c.name} — Action Required | HireShield AI`,
+    joining:`Joining Reminder: ${c.name} — DOJ ${dojStr} | HireShield AI`,
+    docs:`Documents Pending: ${c.name} — Please Submit | HireShield AI`,
+    escalation:`[ESCALATION] ${c.name} — ${r.riskLevel} Risk Alert | HireShield AI`
+  };
+
+  currentEmailType=type;
+  document.getElementById('em-to').value='';
+  document.getElementById('em-cc').value='';
+  document.getElementById('em-subject').value=subjects[type]||'';
+  document.getElementById('em-body-text').value=bodies[type]||'';
+  document.getElementById('em-status-area').innerHTML='';
+
+  // Set active tab
+  document.querySelectorAll('.em-type-btn').forEach(b=>b.classList.remove('active'));
+  const typeMap={followup:0,offer:1,joining:2,docs:3,escalation:4};
+  const tabs=document.querySelectorAll('.em-type-btn');
+  if(tabs[typeMap[type]])tabs[typeMap[type]].classList.add('active');
+
+  // Tag
+  const tagHtml={
+    escalation:'<span class="em-tag em-tag-escalation">🚨 Escalation</span>',
+    followup:'<span class="em-tag em-tag-followup">📞 Follow-up</span>',
+    offer:'<span class="em-tag em-tag-followup">📋 Offer</span>',
+    joining:'<span class="em-tag em-tag-reminder">📅 Joining</span>',
+    docs:'<span class="em-tag em-tag-reminder">📁 Docs</span>'
+  };
+  document.getElementById('em-tag-display').innerHTML=tagHtml[type]||'';
+
+  closeCC();
+  document.getElementById('email-modal').classList.remove('hidden');
+  document.body.style.overflow='hidden';
+}
+
+/* ── Open generic email modal (e.g. from topbar) ── */
+function openEmailModal(type='followup',candidateId=null){
+  if(candidateId)openEmailFromCC(type,candidateId);
+  else{
+    currentEmailCandidateId=null;
+    currentEmailType=type;
+    document.getElementById('em-to').value='';
+    document.getElementById('em-cc').value='';
+    document.getElementById('em-subject').value='HireShield AI — Notification';
+    document.getElementById('em-body-text').value='';
+    document.getElementById('em-status-area').innerHTML='';
+    document.getElementById('em-tag-display').innerHTML='';
+    document.getElementById('email-modal').classList.remove('hidden');
+    document.body.style.overflow='hidden';
+  }
+}
+
+function closeEmailModal(){
+  document.getElementById('email-modal').classList.add('hidden');
+  document.body.style.overflow='';
+}
+
+/* ── Switch email type in modal ── */
+function setEmailType(btn,type){
+  document.querySelectorAll('.em-type-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentEmailType=type;
+  if(currentEmailCandidateId){
+    const c=candidates.find(x=>x.id===currentEmailCandidateId);
+    if(c){
+      const r=calcRisk(c);
+      const msgs=buildMessages(c,r);
+      const dojStr=c.doj?new Date(c.doj).toLocaleDateString('en-IN',{dateStyle:'long'}):'upcoming date';
+      const bodies={followup:msgs.offer_followup,offer:msgs.offer,joining:msgs.joining,docs:msgs.docs,escalation:buildEscalationMail(c,r)};
+      const subjects={
+        followup:`Follow-up: ${c.name} — ${c.role||'Open Role'} | HireShield AI`,
+        offer:`Offer Reminder: ${c.name} — Action Required | HireShield AI`,
+        joining:`Joining Reminder: ${c.name} — DOJ ${dojStr} | HireShield AI`,
+        docs:`Documents Pending: ${c.name} — Please Submit | HireShield AI`,
+        escalation:`[ESCALATION] ${c.name} — ${r.riskLevel} Risk Alert | HireShield AI`
+      };
+      document.getElementById('em-subject').value=subjects[type]||'';
+      document.getElementById('em-body-text').value=bodies[type]||'';
+    }
+  }
+  const tagHtml={
+    escalation:'<span class="em-tag em-tag-escalation">🚨 Escalation</span>',
+    followup:'<span class="em-tag em-tag-followup">📞 Follow-up</span>',
+    offer:'<span class="em-tag em-tag-followup">📋 Offer</span>',
+    joining:'<span class="em-tag em-tag-reminder">📅 Joining</span>',
+    docs:'<span class="em-tag em-tag-reminder">📁 Docs</span>'
+  };
+  document.getElementById('em-tag-display').innerHTML=tagHtml[type]||'';
+}
+
+/* ── Actual send via EmailJS ── */
+function sendEmail(){
+  const to=document.getElementById('em-to').value.trim();
+  const subject=document.getElementById('em-subject').value.trim();
+  const body=document.getElementById('em-body-text').value.trim();
+  if(!to){toast('Please enter a recipient email address.','error');return;}
+  if(!subject){toast('Subject cannot be empty.','error');return;}
+  if(!body){toast('Message body cannot be empty.','error');return;}
+
+  const statusArea=document.getElementById('em-status-area');
+  const sendBtn=document.getElementById('em-send-btn');
+  statusArea.innerHTML=`<div class="em-status em-status-sending"><div class="em-sending-ring"></div> Sending via EmailJS…</div>`;
+  sendBtn.disabled=true;
+  sendBtn.textContent='⏳ Sending…';
+
+  const templateParams={
+    to_email:to,
+    subject:subject,
+    message:body,
+    from_name:'HireShield AI',
+    reply_to:currentUser?currentUser.email:'noreply@hireshield.ai'
+  };
+
+  emailjs.init(EJS.publicKey);
+  emailjs.send(EJS.serviceId,EJS.templateId,templateParams)
+    .then(()=>{
+      statusArea.innerHTML=`<div class="em-status em-status-success">✅ Email sent successfully to ${to}</div>`;
+      sendBtn.disabled=false;
+      sendBtn.textContent='📤 Send Email';
+      const c=currentEmailCandidateId?candidates.find(x=>x.id===currentEmailCandidateId):null;
+      const logEntry={
+        id:'log_'+Date.now(),
+        ts:new Date().toISOString(),
+        to,subject,type:currentEmailType,
+        candidateName:c?c.name:'—',
+        recruiter:c?c.recruiter:'—',
+        status:'sent'
+      };
+      emailLog.unshift(logEntry);
+      if(emailLog.length>100)emailLog=emailLog.slice(0,100);
+      saveEmailLog();
+      updateEmailBadge();
+      toast(`Email sent to ${to}!`,'success');
+      setTimeout(closeEmailModal,2200);
+    })
+    .catch(err=>{
+      console.error('EmailJS error:',err);
+      statusArea.innerHTML=`<div class="em-status em-status-error">❌ Failed: ${err.text||'Check EmailJS template config'}</div>`;
+      sendBtn.disabled=false;
+      sendBtn.textContent='📤 Send Email';
+      const c=currentEmailCandidateId?candidates.find(x=>x.id===currentEmailCandidateId):null;
+      emailLog.unshift({
+        id:'log_'+Date.now(),
+        ts:new Date().toISOString(),
+        to,subject,type:currentEmailType,
+        candidateName:c?c.name:'—',
+        recruiter:c?c.recruiter:'—',
+        status:'failed',
+        error:err.text||'Unknown error'
+      });
+      saveEmailLog();
+      updateEmailBadge();
+      toast('Email failed. Check console for details.','error');
+    });
+}
+
+function buildEmailBody(raw){return raw;}
+
+/* ── Email Log Rendering ── */
+function renderEmailLog(){
+  const list=document.getElementById('email-log-list');
+  if(!list)return;
+  if(!emailLog.length){
+    list.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div><p>No emails sent yet. Send your first email from the AI Command Center.</p></div>';
+    return;
+  }
+  const typeLabels={followup:'📞 Follow-up',offer:'📋 Offer',joining:'📅 Joining',docs:'📁 Docs',escalation:'🚨 Escalation'};
+  list.innerHTML=emailLog.map(log=>`
+    <div class="email-log-item">
+      <div class="email-log-icon ${log.status==='sent'?'log-sent':'log-failed'}">${log.status==='sent'?'✅':'❌'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.82rem;font-weight:500;color:var(--text)">${esc(log.subject)}</div>
+        <div style="font-size:.72rem;color:var(--text-muted);margin-top:.2rem">
+          To: <strong style="color:var(--accent2)">${esc(log.to)}</strong>
+          ${log.candidateName!=='—'?` · Candidate: <strong>${esc(log.candidateName)}</strong>`:''}
+          · ${typeLabels[log.type]||log.type}
+        </div>
+        ${log.error?`<div style="font-size:.7rem;color:var(--danger2);margin-top:.2rem">Error: ${esc(log.error)}</div>`:''}
+      </div>
+      <div style="font-size:.68rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace;white-space:nowrap;flex-shrink:0">
+        ${new Date(log.ts).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'})}
+      </div>
+    </div>`).join('');
+}
+
+function clearEmailLog(){
+  if(!confirm('Clear all email log entries?'))return;
+  emailLog=[];
+  saveEmailLog();
+  updateEmailBadge();
+  renderEmailLog();
+  toast('Email log cleared.','info');
+}
+
+function updateEmailBadge(){
+  const badge=document.getElementById('nav-badge-email');
+  if(badge)badge.textContent=emailLog.filter(l=>l.status==='sent').length;
+}
+
+/* ======================================================
+   OFFER RISK ASSESSMENT (inline form)
+====================================================== */
+const oraState={};
+const ORA_DANGER={counter_offer:['Yes','Maybe'],competing_offers:['Yes'],relocation_concern:['Yes'],response_speed:['Slow'],enthusiasm:['Low'],docs_status:['Pending'],joining_confidence:['Weak']};
+const ORA_SUCCESS={counter_offer:['No'],competing_offers:['No'],relocation_concern:['No'],response_speed:['Fast'],enthusiasm:['High'],docs_status:['Complete'],joining_confidence:['Strong']};
+const ORA_WARN={response_speed:['Medium'],enthusiasm:['Medium'],docs_status:['Partial'],joining_confidence:['Moderate']};
+
+function toggleORA(){
+  const body=document.getElementById('ora-body');
+  const arrow=document.getElementById('ora-arrow');
+  const open=body.style.display==='none';
+  body.style.display=open?'block':'none';
+  arrow.style.transform=open?'rotate(180deg)':'rotate(0deg)';
+}
+
+function oraSelect(btn,key,val){
+  btn.closest('[id^="ora-"]').querySelectorAll('.ora-opt').forEach(b=>b.className='ora-opt');
+  oraState[key]=val;
+  if((ORA_DANGER[key]||[]).includes(val))btn.classList.add('ora-sel-danger');
+  else if((ORA_SUCCESS[key]||[]).includes(val))btn.classList.add('ora-sel-success');
+  else if((ORA_WARN[key]||[]).includes(val))btn.classList.add('ora-sel-warn');
+  else btn.classList.add('ora-sel-neutral');
+  updateORAPreview();
+}
+
+function updateORAPreview(){
+  const filled=Object.keys(oraState).length;
+  const prev=document.getElementById('ora-preview');
+  if(filled<2){prev.style.display='none';return;}
+  prev.style.display='block';
+  const delta=calcQuestRiskDelta(oraState);
+  const label=delta>=30?'🔴 High Risk — escalation likely':delta>=15?'🟡 Medium Risk — monitor closely':'🟢 Low Risk — on track';
+  document.getElementById('ora-preview-text').textContent=label;
+}
+
+function resetORA(){
+  Object.keys(oraState).forEach(k=>delete oraState[k]);
+  document.querySelectorAll('.ora-opt').forEach(b=>b.className='ora-opt');
+  document.getElementById('ora-preview').style.display='none';
+  const notesEl=document.getElementById('ora-notes');
+  if(notesEl)notesEl.value='';
+}
+
+/* ======================================================
+   FOLLOW-UP QUESTIONNAIRE
+====================================================== */
+let currentQuestCandidateId=null;
+const questState={};  // holds current modal selections
+
+function openQuestionnaire(id){
+  const c=candidates.find(x=>x.id===id);
+  if(!c)return;
+  currentQuestCandidateId=id;
+
+  // Reset state
+  Object.keys(questState).forEach(k=>delete questState[k]);
+
+  // Restore saved answers if exist
+  if(c.followup){
+    Object.assign(questState,c.followup);
+  }
+
+  // Update header
+  document.getElementById('quest-cand-label').textContent=`${c.name} · ${c.role||'—'} · ${c.recruiter||'—'}`;
+  const badge=document.getElementById('quest-filled-badge');
+  if(c.followup&&c.followup.filledAt){
+    badge.classList.remove('hidden');
+    document.getElementById('quest-last-filled').textContent='Last filled: '+new Date(c.followup.filledAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'});
+  } else {
+    badge.classList.add('hidden');
+    document.getElementById('quest-last-filled').textContent='';
+  }
+
+  // Re-render all option buttons
+  const fields={
+    'counter_offer':'qf-counter-offer',
+    'response_speed':'qf-response-speed',
+    'enthusiasm':'qf-enthusiasm',
+    'competing_offers':'qf-competing',
+    'relocation_concern':'qf-relocation',
+    'docs_status':'qf-docs',
+    'joining_confidence':'qf-confidence'
+  };
+  Object.entries(fields).forEach(([key,elId])=>{
+    const container=document.getElementById(elId);
+    if(!container)return;
+    container.querySelectorAll('.quest-opt').forEach(btn=>{
+      btn.className='quest-opt';
+      if(questState[key]===btn.dataset.val){
+        btn.classList.add(getOptClass(key,btn.dataset.val));
+      }
+    });
+  });
+
+  // Restore notes
+  const notesEl=document.getElementById('qf-recruiter-notes');
+  if(notesEl)notesEl.value=questState.recruiter_notes||'';
+
+  updateQuestAIPreview();
+  document.getElementById('quest-modal').classList.remove('hidden');
+  document.body.style.overflow='hidden';
+}
+
+function getOptClass(key,val){
+  const dangerOpts={counter_offer:['Yes','May Be'],competing_offers:['Yes'],relocation_concern:['Yes'],response_speed:['Slow'],enthusiasm:['Low'],docs_status:['Pending'],joining_confidence:['Weak']};
+  const successOpts={counter_offer:['No'],competing_offers:['No'],relocation_concern:['No'],response_speed:['Fast'],enthusiasm:['High'],docs_status:['Complete'],joining_confidence:['Strong']};
+  const warningOpts={response_speed:['Medium'],enthusiasm:['Medium'],docs_status:['Partial'],joining_confidence:['Moderate']};
+  if(dangerOpts[key]?.includes(val))return'selected-danger';
+  if(successOpts[key]?.includes(val))return'selected-success';
+  if(warningOpts[key]?.includes(val))return'selected-warning';
+  return'selected';
+}
+
+function selectOpt(btn,key,val){
+  // Deselect siblings
+  btn.closest('.quest-options').querySelectorAll('.quest-opt').forEach(b=>{
+    b.className='quest-opt';
+  });
+  questState[key]=val;
+  btn.classList.add(getOptClass(key,val));
+  updateQuestAIPreview();
+}
+
+function updateQuestAIPreview(){
+  const preview=document.getElementById('quest-ai-preview');
+  const scoreText=document.getElementById('quest-ai-score-text');
+  const filled=Object.keys(questState).filter(k=>k!=='recruiter_notes'&&k!=='filledAt').length;
+  if(filled<2){preview.style.display='none';return;}
+  preview.style.display='flex';
+
+  // Calculate questionnaire-based risk delta
+  const delta=calcQuestRiskDelta(questState);
+  const baseLabel=delta>=30?'🔴 High Risk':delta>=15?'🟡 Medium Risk':'🟢 Low Risk';
+  const signals=getQuestSignals(questState);
+  scoreText.innerHTML=`<strong style="color:${delta>=30?'var(--danger)':delta>=15?'var(--warning)':'var(--success)'}">${baseLabel}</strong> · ${signals.slice(0,3).join(' · ')||'No major risk signals detected'}`;
+}
+
+function calcQuestRiskDelta(fup){
+  if(!fup)return 0;
+  let d=0;
+  if(fup.counter_offer==='Yes')d+=30;
+  if(fup.counter_offer==='May Be')d+=15;
+  if(fup.competing_offers==='Yes')d+=25;
+  if(fup.response_speed==='Slow')d+=20;
+  if(fup.response_speed==='Medium')d+=8;
+  if(fup.enthusiasm==='Low')d+=25;
+  if(fup.enthusiasm==='Medium')d+=10;
+  if(fup.relocation_concern==='Yes')d+=18;
+  if(fup.docs_status==='Pending')d+=15;
+  if(fup.docs_status==='Partial')d+=8;
+  if(fup.joining_confidence==='Weak')d+=30;
+  if(fup.joining_confidence==='Moderate')d+=12;
+  // Positive signals reduce risk
+  if(fup.joining_confidence==='Strong')d-=15;
+  if(fup.enthusiasm==='High')d-=10;
+  if(fup.response_speed==='Fast')d-=8;
+  if(fup.docs_status==='Complete')d-=10;
+  if(fup.counter_offer==='No')d-=8;
+  if(fup.competing_offers==='No')d-=8;
+  return Math.max(0,d);
+}
+
+function getQuestSignals(fup){
+  const signals=[];
+  if(fup.counter_offer==='Yes')signals.push('Counter offer expected');
+  if(fup.counter_offer==='May Be')signals.push('Counter offer possible');
+  if(fup.competing_offers==='Yes')signals.push('Has competing offers');
+  if(fup.response_speed==='Slow')signals.push('Slow response speed');
+  if(fup.enthusiasm==='Low')signals.push('Low enthusiasm');
+  if(fup.relocation_concern==='Yes')signals.push('Relocation concern');
+  if(fup.docs_status==='Pending')signals.push('Docs pending');
+  if(fup.joining_confidence==='Weak')signals.push('Recruiter confidence: Weak');
+  if(fup.joining_confidence==='Strong')signals.push('Recruiter confident');
+  if(fup.enthusiasm==='High')signals.push('High enthusiasm');
+  return signals;
+}
+
+function saveQuestionnaire(){
+  const c=candidates.find(x=>x.id===currentQuestCandidateId);
+  if(!c)return;
+  questState.recruiter_notes=document.getElementById('qf-recruiter-notes').value.trim();
+  questState.filledAt=new Date().toISOString();
+  c.followup={...questState};
+  saveData();
+  renderAll();
+  logActivity({type:'update',recruiter:currentUser?currentUser.name:'Recruiter',message:`Follow-up form updated for <strong>${c.name}</strong>`,candidateId:c.id,ts:new Date().toISOString()});
+  toast(`Follow-up questionnaire saved for ${c.name}. AI risk recalculated.`,'success');
+  closeQuestionnaire();
+  // Auto-open CC to show updated analysis
+  setTimeout(()=>openCC(c.id),300);
+}
+
+function closeQuestionnaire(){
+  document.getElementById('quest-modal').classList.add('hidden');
+  document.body.style.overflow='';
+  currentQuestCandidateId=null;
+}
+
+/* ======================================================
+   EDIT CANDIDATE
+====================================================== */
+let editingCandidateId=null;
+const eoraState={};
+
+function openEditModal(id){
+  const c=candidates.find(x=>x.id===id);
+  if(!c)return;
+  editingCandidateId=id;
+  document.getElementById('e-name').value=c.name||'';
+  document.getElementById('e-phone').value=c.phone||'';
+  document.getElementById('e-role').value=c.role||'';
+  document.getElementById('e-recruiter').value=c.recruiter||'';
+  document.getElementById('e-stage').value=c.stage||'Offer Released';
+  document.getElementById('e-last').value=c.lastContacted||'';
+  document.getElementById('e-doj').value=c.doj||'';
+  document.getElementById('e-notes').value=c.notes||'';
+  // Restore ORA
+  Object.keys(eoraState).forEach(k=>delete eoraState[k]);
+  if(c.followup)Object.assign(eoraState,c.followup);
+  restoreEoraButtons();
+  const notesEl=document.getElementById('eora-notes');
+  if(notesEl)notesEl.value=(c.followup&&c.followup.recruiter_notes)||'';
+  document.getElementById('edit-modal').classList.remove('hidden');
+  document.body.style.overflow='hidden';
+}
+
+function closeEditModal(){
+  document.getElementById('edit-modal').classList.add('hidden');
+  document.body.style.overflow='';
+  editingCandidateId=null;
+}
+
+function saveEditCandidate(){
+  const name=document.getElementById('e-name').value.trim();
+  if(!name){toast('Candidate name is required.','error');return;}
+  const idx=candidates.findIndex(c=>c.id===editingCandidateId);
+  if(idx===-1){toast('Candidate not found.','error');return;}
+  const eoNotes=document.getElementById('eora-notes')?document.getElementById('eora-notes').value.trim():'';
+  const updatedFollowup=Object.keys(eoraState).length>0||eoNotes
+    ?{...eoraState,recruiter_notes:eoNotes,filledAt:candidates[idx].followup?.filledAt||new Date().toISOString()}
+    :candidates[idx].followup;
+  candidates[idx]={
+    ...candidates[idx],
+    name,
+    phone:document.getElementById('e-phone').value.trim(),
+    role:document.getElementById('e-role').value.trim(),
+    recruiter:document.getElementById('e-recruiter').value.trim(),
+    stage:document.getElementById('e-stage').value,
+    lastContacted:document.getElementById('e-last').value,
+    doj:document.getElementById('e-doj').value,
+    notes:document.getElementById('e-notes').value.trim(),
+    followup:updatedFollowup,
+    updatedAt:new Date().toISOString()
+  };
+  saveData();renderAll();
+  logActivity({type:'update',recruiter:currentUser?currentUser.name:'Recruiter',message:`Updated candidate <strong>${name}</strong>`,ts:new Date().toISOString()});
+  toast(`${name} updated successfully. AI risk recalculated.`,'success');
+  closeEditModal();
+}
+
+function toggleEditORA(){
+  const body=document.getElementById('e-ora-body');
+  const arrow=document.getElementById('e-ora-arrow');
+  const open=body.style.display==='none';
+  body.style.display=open?'block':'none';
+  arrow.style.transform=open?'rotate(180deg)':'rotate(0deg)';
+}
+
+function eoraSelect(btn,key,val){
+  btn.closest('[id^="eora-"]').querySelectorAll('.ora-opt').forEach(b=>b.className='ora-opt');
+  eoraState[key]=val;
+  if((ORA_DANGER[key]||[]).includes(val))btn.classList.add('ora-sel-danger');
+  else if((ORA_SUCCESS[key]||[]).includes(val))btn.classList.add('ora-sel-success');
+  else if((ORA_WARN[key]||[]).includes(val))btn.classList.add('ora-sel-warn');
+  else btn.classList.add('ora-sel-neutral');
+}
+
+function restoreEoraButtons(){
+  const map={counter_offer:'eora-counter',response_speed:'eora-speed',enthusiasm:'eora-enthusiasm',competing_offers:'eora-competing',relocation_concern:'eora-relocation',docs_status:'eora-docs',joining_confidence:'eora-confidence'};
+  Object.entries(map).forEach(([key,elId])=>{
+    const container=document.getElementById(elId);
+    if(!container)return;
+    container.querySelectorAll('.ora-opt').forEach(btn=>{
+      btn.className='ora-opt';
+      if(eoraState[key]===btn.dataset.val){
+        if((ORA_DANGER[key]||[]).includes(btn.dataset.val))btn.classList.add('ora-sel-danger');
+        else if((ORA_SUCCESS[key]||[]).includes(btn.dataset.val))btn.classList.add('ora-sel-success');
+        else if((ORA_WARN[key]||[]).includes(btn.dataset.val))btn.classList.add('ora-sel-warn');
+        else btn.classList.add('ora-sel-neutral');
+      }
+    });
+  });
+}
+
+/* ======================================================
+   ACTIVITY LOG
+====================================================== */
+let activityLog=JSON.parse(localStorage.getItem('hs_activity')||'[]');
+function saveActivityLog(){localStorage.setItem('hs_activity',JSON.stringify(activityLog));}
+
+function logActivity(entry){
+  activityLog.unshift(entry);
+  if(activityLog.length>200)activityLog=activityLog.slice(0,200);
+  saveActivityLog();
+}
+
+function clearActivityFeed(){
+  activityLog=[];saveActivityLog();
+  const feed=document.getElementById('activity-feed');
+  if(feed)feed.innerHTML='<div style="color:var(--text-muted);font-size:.82rem;padding:.5rem">No activity yet.</div>';
+}
+
+function renderActivityFeed(){
+  const feed=document.getElementById('activity-feed');
+  if(!feed)return;
+  const recent=activityLog.slice(0,20);
+  if(!recent.length){feed.innerHTML='<div style="color:var(--text-muted);font-size:.82rem;padding:.5rem">No recent activity.</div>';return;}
+  const dotColors={add:'var(--success)',update:'var(--accent2)',delete:'var(--danger)',email:'var(--accent)'};
+  feed.innerHTML=recent.map(a=>`
+    <div class="activity-item">
+      <div class="activity-dot" style="background:${dotColors[a.type]||'var(--accent)'}"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.78rem;color:var(--text)">${a.message}</div>
+        <div style="font-size:.68rem;color:var(--text-muted);margin-top:.1rem">by <span class="activity-recruiter">${esc(a.recruiter||'System')}</span></div>
+      </div>
+      <div class="activity-time">${timeAgo(a.ts)}</div>
+    </div>`).join('');
+}
+
+function timeAgo(ts){
+  const diff=Math.floor((Date.now()-new Date(ts))/1000);
+  if(diff<60)return diff+'s ago';
+  if(diff<3600)return Math.floor(diff/60)+'m ago';
+  if(diff<86400)return Math.floor(diff/3600)+'h ago';
+  return Math.floor(diff/86400)+'d ago';
+}
+
+/* ======================================================
+   MANAGER NOTIFICATIONS
+====================================================== */
+let managerNotifs=JSON.parse(localStorage.getItem('hs_mgr_notifs')||'[]');
+function saveNotifs(){localStorage.setItem('hs_mgr_notifs',JSON.stringify(managerNotifs));}
+
+function queueManagerNotification(notif){
+  managerNotifs.unshift(notif);
+  if(managerNotifs.length>100)managerNotifs=managerNotifs.slice(0,100);
+  saveNotifs();
+}
+
+function checkManagerNotifications(){
+  const unread=managerNotifs.filter(n=>!n.read);
+  if(!unread.length)return;
+  showNotifBanner(`📬 ${unread.length} new recruiter update${unread.length>1?'s':''} since your last login.`,'info');
+}
+
+function markAllNotifRead(){
+  managerNotifs=managerNotifs.map(n=>({...n,read:true}));
+  saveNotifs();
+  renderManagerNotifs();
+  toast('All notifications marked as read.','success');
+}
+
+function renderManagerNotifs(){
+  const list=document.getElementById('mgr-notif-list');
+  if(!list)return;
+  const items=managerNotifs.slice(0,30);
+  if(!items.length){list.innerHTML='<div class="empty-state"><div class="empty-icon">✅</div><p>No pending updates from recruiters.</p></div>';return;}
+  list.innerHTML=items.map(n=>`
+    <div class="pq-item" style="${n.read?'opacity:.55':''}">
+      <div class="pq-priority ${n.read?'pq-p3':'pq-p2'}"></div>
+      <div style="flex:1">
+        <div class="pq-text"><span class="activity-recruiter">${esc(n.recruiter)}</span> added <strong>${esc(n.candidateName)}</strong> — ${esc(n.role||'—')}</div>
+        <div class="pq-cand">Stage: ${esc(n.stage)} · ${timeAgo(n.ts)}</div>
+      </div>
+      <span style="font-size:.68rem;padding:.2rem .5rem;border-radius:6px;background:${n.read?'rgba(255,255,255,.06)':'rgba(37,99,255,.15)'};color:${n.read?'var(--text-muted)':'var(--accent2)'}">${n.read?'Read':'New'}</span>
+    </div>`).join('');
+}
+
+function showNotifBanner(msg,type='info'){
+  const existing=document.getElementById('notif-banner');
+  if(existing)existing.remove();
+  const banner=document.createElement('div');
+  banner.id='notif-banner';
+  banner.className=`notif-banner notif-banner-${type}`;
+  banner.innerHTML=`<span>🔔</span><span>${msg}</span><button class="notif-banner-close" onclick="this.parentElement.remove()">✕ Dismiss</button>`;
+  document.body.appendChild(banner);
+  setTimeout(()=>{if(banner.parentElement)banner.remove();},9000);
+}
+
+/* ======================================================
+   MANAGER DASHBOARD RENDER
+====================================================== */
+function getRecruiterStats(){
+  const map={};
+  const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
+  candidates.forEach(c=>{
+    const r=c.recruiter||'Unassigned';
+    if(!map[r])map[r]={name:r,total:0,thisWeek:0,high:0,escalation:0,joinProbSum:0,joinProbCount:0,maxGap:0,recentCandidates:[]};
+    const risk=calcRisk(c);
+    map[r].total++;
+    if(c.addedAt&&new Date(c.addedAt)>=weekAgo)map[r].thisWeek++;
+    if(risk.riskLevel==='High')map[r].high++;
+    if(risk.escalation==='Critical')map[r].escalation++;
+    map[r].joinProbSum+=risk.joinProb;
+    map[r].joinProbCount++;
+    const last=c.lastContacted?Math.floor((new Date()-new Date(c.lastContacted))/86400000):0;
+    if(last>map[r].maxGap)map[r].maxGap=last;
+    if(map[r].recentCandidates.length<3)map[r].recentCandidates.push({name:c.name,risk:risk.riskLevel,stage:c.stage,ts:c.addedAt});
+  });
+  return Object.values(map).map(r=>{
+    const avgProb=r.joinProbCount?Math.round(r.joinProbSum/r.joinProbCount):0;
+    const perfScore=Math.max(0,Math.min(100,Math.round(
+      100-(r.high/Math.max(r.total,1))*40-(r.escalation*10)-(r.maxGap>5?20:r.maxGap>3?10:0)+(r.thisWeek*3)
+    )));
+    return{...r,avgProb,perfScore};
+  }).sort((a,b)=>b.perfScore-a.perfScore);
+}
+
+function renderManagerDashboard(){
+  const hour=new Date().getHours();
+  const greet=hour<12?'Good morning':hour<17?'Good afternoon':'Good evening';
+  const greetEl=document.getElementById('mgr-greet');
+  if(greetEl)greetEl.textContent=`${greet}, ${currentUser?currentUser.name.split(' ')[0]:'Manager'} 👋`;
+  const upd=document.getElementById('mgr-last-update');
+  if(upd)upd.textContent='Last updated: '+new Date().toLocaleTimeString('en-IN',{timeStyle:'short'});
+
+  const stats=getRecruiterStats();
+  const total=candidates.length;
+  const highCount=candidates.filter(c=>calcRisk(c).riskLevel==='High').length;
+  const critCount=candidates.filter(c=>calcRisk(c).escalation==='Critical').length;
+  const confirmed=candidates.filter(c=>c.stage==='Joined').length;
+  const unreadNotifs=managerNotifs.filter(n=>!n.read).length;
+  const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
+  const newThisWeek=candidates.filter(c=>c.addedAt&&new Date(c.addedAt)>=weekAgo).length;
+
+  const mgrGrid=document.getElementById('mgr-stats-grid');
+  if(mgrGrid){
+    const mgrCards=[
+      {label:'Total Pipeline',value:total,icon:'📊',color:'var(--accent2)'},
+      {label:'Added This Week',value:newThisWeek,icon:'📥',color:'var(--accent)'},
+      {label:'High Risk',value:highCount,icon:'⚠️',color:'var(--danger2)'},
+      {label:'Critical Escalations',value:critCount,icon:'🚨',color:'var(--warning)'},
+      {label:'Confirmed Joiners',value:confirmed,icon:'✅',color:'var(--success)'},
+      {label:'Unread Updates',value:unreadNotifs,icon:'🔔',color:'var(--accent2)'},
+    ];
+    mgrGrid.style.gridTemplateColumns='repeat(6,1fr)';
+    mgrGrid.innerHTML=mgrCards.map((c,i)=>`
+      <div class="stat-card" style="animation-delay:${i*0.06}s">
+        <div class="stat-icon" style="background:rgba(255,255,255,.06);color:${c.color}">${c.icon}</div>
+        <div class="stat-label">${c.label}</div>
+        <div class="stat-value" style="color:${c.color};font-size:1.6rem">${c.value}</div>
+      </div>`).join('');
+  }
+
+  const grid=document.getElementById('recruiter-cards-grid');
+  if(grid){
+    if(!stats.length){grid.innerHTML='<div style="color:var(--text-muted);padding:1rem;font-size:.85rem">No recruiter data. Add candidates with recruiter names first, or load demo data.</div>';return;}
+    grid.innerHTML=stats.map(r=>{
+      const perfColor=r.perfScore>=70?'var(--success)':r.perfScore>=45?'var(--warning)':'var(--danger2)';
+      const cardCls=r.perfScore>=70?'rc-green':r.perfScore>=45?'rc-yellow':'rc-red';
+      const badgeTxt=r.perfScore>=70?'On Track':r.perfScore>=45?'Needs Attention':'At Risk';
+      const badgeBg=r.perfScore>=70?'rgba(16,185,129,.2)':r.perfScore>=45?'rgba(245,158,11,.2)':'rgba(239,68,68,.2)';
+      const badgeColor=r.perfScore>=70?'var(--success)':r.perfScore>=45?'var(--warning)':'var(--danger2)';
+      const initials=r.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+      const avatarGrad=r.perfScore>=70?'linear-gradient(135deg,var(--success),#a8d8a8)':r.perfScore>=45?'linear-gradient(135deg,var(--warning),#fcd34d)':'linear-gradient(135deg,var(--danger),var(--danger2))';
+      return `<div class="recruiter-card ${cardCls}">
+        <div class="rc-header">
+          <div class="rc-avatar" style="background:${avatarGrad}">${initials}</div>
+          <div>
+            <div class="rc-name">${esc(r.name)}</div>
+            <span class="rc-badge" style="background:${badgeBg};color:${badgeColor}">${badgeTxt}</span>
+          </div>
+        </div>
+        <div class="rc-stats">
+          <div class="rc-stat"><div class="rc-stat-val" style="color:var(--accent2)">${r.total}</div><div class="rc-stat-lbl">Total</div></div>
+          <div class="rc-stat"><div class="rc-stat-val" style="color:var(--success)">${r.thisWeek}</div><div class="rc-stat-lbl">This Week</div></div>
+          <div class="rc-stat"><div class="rc-stat-val" style="color:${r.high>0?'var(--danger2)':'var(--success)'}">${r.high}</div><div class="rc-stat-lbl">High Risk</div></div>
+        </div>
+        <div class="rc-stats">
+          <div class="rc-stat"><div class="rc-stat-val" style="color:${r.escalation>0?'var(--warning)':'var(--success)'}">${r.escalation}</div><div class="rc-stat-lbl">Escalations</div></div>
+          <div class="rc-stat"><div class="rc-stat-val" style="color:var(--accent2)">${r.avgProb}%</div><div class="rc-stat-lbl">Avg Join%</div></div>
+          <div class="rc-stat"><div class="rc-stat-val" style="color:${r.maxGap>5?'var(--danger2)':r.maxGap>3?'var(--warning)':'var(--success)'}">${r.maxGap}d</div><div class="rc-stat-lbl">Max Gap</div></div>
+        </div>
+        <div>
+          <div class="rc-perf-label"><span>Performance Score</span><span style="color:${perfColor};font-weight:700">${r.perfScore}%</span></div>
+          <div class="rc-perf-bar"><div class="rc-perf-fill" style="width:${r.perfScore}%;background:${perfColor}"></div></div>
+        </div>
+        ${r.recentCandidates.length?`<div class="rc-recent">
+          <div class="rc-recent-title">Recent Candidates</div>
+          ${r.recentCandidates.map(c=>`<div class="rc-recent-item">
+            <span style="font-size:.73rem">${esc(c.name)}</span>
+            <span class="risk-badge ${c.risk==='High'?'risk-high':c.risk==='Medium'?'risk-medium':'risk-low'}" style="padding:.1rem .4rem;font-size:.62rem">${c.risk}</span>
+          </div>`).join('')}
+        </div>`:''}
+        <div class="rc-actions">
+          <button class="btn btn-secondary btn-sm" onclick="filterByRecruiter('${r.name.replace(/'/g,"\\'")}')">👁 View All</button>
+          <button class="btn btn-primary btn-sm" onclick="prefillAndOpenEmail('${r.name.replace(/'/g,"\\'")}')">📤 Email</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  renderActivityFeed();
+  renderManagerNotifs();
+}
+
+function filterByRecruiter(name){
+  showSection('candidates');
+  const inp=document.getElementById('search-input-2');
+  if(inp){inp.value=name;renderTable2();}
+}
+
+function prefillAndOpenEmail(name){
+  openEmailModal('followup',null);
+  setTimeout(()=>{
+    document.getElementById('em-subject').value=`Recruiter Update: ${name} — HireShield AI`;
+    document.getElementById('em-body-text').value=buildRecruiterUpdateBody(name);
+  },100);
+}
+
+function buildRecruiterUpdateBody(name){
+  const s=getRecruiterStats().find(r=>r.name===name)||{total:0,thisWeek:0,high:0,escalation:0,avgProb:0,perfScore:0,maxGap:0};
+  return `Hi ${name},\n\nHere's your performance update from HireShield AI:\n\nTotal Candidates    : ${s.total}\nAdded This Week     : ${s.thisWeek}\nHigh Risk           : ${s.high}\nEscalations         : ${s.escalation}\nAvg Join Probability: ${s.avgProb}%\nPerformance Score   : ${s.perfScore}%\nMax Follow-up Gap   : ${s.maxGap} days\n\nPlease review your high-risk candidates and ensure timely follow-ups.\n\nRegards,\nJordan Smith\nHiring Manager — HireShield AI`;
+}
+
+/* ======================================================
+   MANAGER UPDATE EMAIL (triggered on candidate add)
+====================================================== */
+function sendManagerUpdateEmail(candidate){
+  const managerEmail='manager@hireshield.ai';
+  const risk=calcRisk(candidate);
+  const subject=`[HireShield AI] New Candidate Added — ${candidate.name} by ${candidate.recruiter||'Recruiter'}`;
+  const body=`Hi Manager,\n\nA new candidate has been added to the hiring pipeline.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCANDIDATE UPDATE\n${new Date().toLocaleString('en-IN',{dateStyle:'full',timeStyle:'short'})}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nCandidate   : ${candidate.name}\nRole        : ${candidate.role||'N/A'}\nStage       : ${candidate.stage}\nRecruiter   : ${candidate.recruiter||'Unassigned'}\nAI Risk     : ${risk.riskLevel} (${risk.riskScore}%)\nJoin Prob   : ${risk.joinProb}%\nEscalation  : ${risk.escalation}\n\nAI Recommendation: ${risk.action.label}\n\nThis is an automated update from HireShield AI.\n\nRegards,\nHireShield AI System`;
+
+  emailjs.init(EJS.publicKey);
+  emailjs.send(EJS.serviceId,EJS.templateId,{
+    to_email:managerEmail,subject,message:body,
+    from_name:'HireShield AI',reply_to:'noreply@hireshield.ai'
+  }).then(()=>{
+    toast(`Manager notified about ${candidate.name}.`,'success');
+    emailLog.unshift({id:'log_'+Date.now(),ts:new Date().toISOString(),to:managerEmail,subject,type:'update',candidateName:candidate.name,recruiter:candidate.recruiter||'—',status:'sent'});
+    saveEmailLog();updateEmailBadge();
+  }).catch(err=>console.warn('Manager notification email failed:',err));
+}
+
+/* ======================================================
+   WEEKLY REPORT
+====================================================== */
+function buildWeeklyReport(){
+  const now=new Date();
+  const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
+  const stats=getRecruiterStats();
+  const total=candidates.length;
+  const high=candidates.filter(c=>calcRisk(c).riskLevel==='High').length;
+  const crit=candidates.filter(c=>calcRisk(c).escalation==='Critical').length;
+  const confirmed=candidates.filter(c=>c.stage==='Joined').length;
+  const newThisWeek=candidates.filter(c=>c.addedAt&&new Date(c.addedAt)>=weekAgo).length;
+  const avgJoin=candidates.length?Math.round(candidates.reduce((s,c)=>s+calcRisk(c).joinProb,0)/candidates.length):0;
+
+  let r=`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+  r+=`   HIRESHIELD AI — WEEKLY HIRING REPORT\n`;
+  r+=`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  r+=`Report Generated : ${now.toLocaleString('en-IN',{dateStyle:'full',timeStyle:'short'})}\n`;
+  r+=`Prepared For     : ${currentUser?currentUser.name:'Hiring Manager'}\n`;
+  r+=`Period           : ${weekAgo.toLocaleDateString('en-IN')} — ${now.toLocaleDateString('en-IN')}\n\n`;
+  r+=`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nPIPELINE SUMMARY\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  r+=`Total Candidates       : ${total}\nAdded This Week        : ${newThisWeek}\nHigh Risk Candidates   : ${high}\nCritical Escalations   : ${crit}\nConfirmed Joiners      : ${confirmed}\nAvg Join Probability   : ${avgJoin}%\nActive Recruiters      : ${stats.length}\n\n`;
+  r+=`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nRECRUITER PERFORMANCE BREAKDOWN\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  stats.forEach((s,i)=>{
+    const status=s.perfScore>=70?'✅ On Track':s.perfScore>=45?'⚠️  Needs Attention':'🔴 At Risk';
+    r+=`${i+1}. ${s.name}\n   Status          : ${status}\n   Performance     : ${s.perfScore}%\n   Total Pipeline  : ${s.total}\n   Added This Week : ${s.thisWeek}\n   High Risk       : ${s.high}\n   Escalations     : ${s.escalation}\n   Avg Join Prob   : ${s.avgProb}%\n   Max Follow-up Gap: ${s.maxGap}d\n\n`;
+  });
+  const critCands=candidates.filter(c=>calcRisk(c).escalation==='Critical');
+  if(critCands.length){
+    r+=`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCRITICAL ESCALATIONS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    critCands.forEach(c=>{
+      const ri=calcRisk(c);
+      r+=`• ${c.name} (${c.role||'—'}) — Recruiter: ${c.recruiter||'Unassigned'}\n  Risk: ${ri.riskScore}% | Join: ${ri.joinProb}% | Gap: ${ri.recruiterGap}\n  Action: ${ri.action.label}\n\n`;
+    });
+  }
+  r+=`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nThis report was auto-generated by HireShield AI.\n© ${now.getFullYear()} HireShield AI — Protecting Hiring Outcomes\n`;
+  return r;
+}
+
+function openWeeklyReportModal(){
+  document.getElementById('weekly-preview-body').textContent=buildWeeklyReport();
+  document.getElementById('weekly-status-area').innerHTML='';
+  document.getElementById('weekly-modal').classList.remove('hidden');
+  document.body.style.overflow='hidden';
+}
+
+function closeWeeklyModal(){
+  document.getElementById('weekly-modal').classList.add('hidden');
+  document.body.style.overflow='';
+}
+
+function copyWeeklyReport(){
+  const txt=document.getElementById('weekly-preview-body').textContent;
+  navigator.clipboard.writeText(txt).then(()=>toast('Weekly report copied!','success')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();
+    toast('Weekly report copied!','success');
+  });
+}
+
+function sendWeeklyReportEmail(){
+  const managerEmail='manager@hireshield.ai';
+  const report=buildWeeklyReport();
+  const now=new Date();
+  const subject=`[Weekly Report] HireShield AI Hiring Summary — ${now.toLocaleDateString('en-IN',{dateStyle:'medium'})}`;
+  const statusArea=document.getElementById('weekly-status-area');
+  if(statusArea)statusArea.innerHTML=`<div class="em-status em-status-sending"><div class="em-sending-ring"></div> Sending weekly report…</div>`;
+  emailjs.init(EJS.publicKey);
+  emailjs.send(EJS.serviceId,EJS.templateId,{
+    to_email:managerEmail,subject,message:report,
+    from_name:'HireShield AI',reply_to:'noreply@hireshield.ai'
+  }).then(()=>{
+    if(statusArea)statusArea.innerHTML=`<div class="em-status em-status-success">✅ Weekly report sent to ${managerEmail}</div>`;
+    localStorage.setItem('hs_last_weekly',now.toISOString());
+    toast('Weekly report emailed to manager!','success');
+    logActivity({type:'email',recruiter:'System',message:'Weekly report sent to manager',ts:now.toISOString()});
+    emailLog.unshift({id:'log_'+Date.now(),ts:now.toISOString(),to:managerEmail,subject,type:'weekly',candidateName:'—',recruiter:'System',status:'sent'});
+    saveEmailLog();updateEmailBadge();
+  }).catch(err=>{
+    if(statusArea)statusArea.innerHTML=`<div class="em-status em-status-error">❌ Failed: ${err.text||'EmailJS error'}</div>`;
+    toast('Weekly report email failed.','error');
+  });
+}
+
+function checkAutoWeeklyReport(){
+  const last=localStorage.getItem('hs_last_weekly');
+  if(!last){
+    setTimeout(()=>showNotifBanner('📊 No weekly report has been sent yet. Click "Generate Weekly Report" to create one.','info'),2500);
+    return;
+  }
+  const daysSince=Math.floor((Date.now()-new Date(last))/86400000);
+  if(daysSince>=7){
+    setTimeout(()=>{
+      showNotifBanner(`📊 Weekly report is overdue (${daysSince} days). Auto-sending now…`,'warning');
+      sendWeeklyReportEmail();
+    },3000);
+  } else {
+    setTimeout(()=>showNotifBanner(`📊 Next weekly report due in ${7-daysSince} day${7-daysSince!==1?'s':''}.`,'info'),2500);
+  }
+}
+
+/* ======================================================
+   HELPERS
+====================================================== */
+function esc(str){
+  if(str===null||str===undefined)return'';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ======================================================
+   BOOT
+====================================================== */
+createParticles();
+autoLogin();
+</script>
+</body>
+</html>
