@@ -1460,8 +1460,8 @@ function toast(msg,type='info',duration=3200){
 /* ======================================================
    SUPABASE CONFIG — paste your values here
 ====================================================== */
-const SUPABASE_URL = ''https://mvzoeqvpxomcwniugfql.supabase.co'';       // e.g. https://xyzxyz.supabase.co
-const SUPABASE_ANON_KEY = ''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12em9lcXZweG9tY3duaXVnZnFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDMxNjcsImV4cCI6MjA5NDY3OTE2N30.-mUxwu4fQbiEmu3d84FIDzpuF5b2J6AlgQADx1X_Ra4'; // long key from Settings → API
+const SUPABASE_URL = 'https://mvzoeqvpxomcwniugfql.supabase.co';       // e.g. https://xyzxyz.supabase.co
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12em9lcXZweG9tY3duaXVnZnFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDMxNjcsImV4cCI6MjA5NDY3OTE2N30.-mUxwu4fQbiEmu3d84FIDzpuF5b2J6AlgQADx1X_Ra4'; // long key from Settings → API
 
 let _supabase = null;
 function getSupabase(){
@@ -1528,19 +1528,32 @@ async function doLogout(){
 }
 
 async function autoLogin(){
-  const {data}=await getSupabase().auth.getSession();
-  if(data.session){
-    const user=data.session.user;
-    const meta=user.user_metadata||{};
-    currentUser={
-      id:user.id,
-      email:user.email,
-      name:meta.name||user.email.split('@')[0],
-      role:meta.role||'recruiter'
-    };
+  // Timeout fallback — if Supabase takes too long, show login
+  const timeout = setTimeout(()=>{
     document.getElementById('loading-screen').style.display='none';
-    initApp();
-  } else {
+    document.getElementById('login-page').style.display='flex';
+  }, 6000);
+
+  try{
+    const {data}=await getSupabase().auth.getSession();
+    clearTimeout(timeout);
+    if(data.session){
+      const user=data.session.user;
+      const meta=user.user_metadata||{};
+      currentUser={
+        id:user.id,
+        email:user.email,
+        name:meta.name||user.email.split('@')[0],
+        role:meta.role||'recruiter'
+      };
+      document.getElementById('loading-screen').style.display='none';
+      initApp();
+    } else {
+      document.getElementById('loading-screen').style.display='none';
+      document.getElementById('login-page').style.display='flex';
+    }
+  }catch(e){
+    clearTimeout(timeout);
     document.getElementById('loading-screen').style.display='none';
     document.getElementById('login-page').style.display='flex';
   }
