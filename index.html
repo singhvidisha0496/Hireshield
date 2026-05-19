@@ -1445,18 +1445,33 @@ async function sendOTP(resend=false){
   btn.textContent='⏳ Sending…';
   btn.disabled=true;
 
+  // Timeout after 8 seconds
+  const timeoutId=setTimeout(()=>{
+    btn.textContent='📧 Send OTP Code';
+    btn.disabled=false;
+    showLoginError('⏳ Request timed out — either the email rate limit is active (wait 1 hour) or there is a connection issue. Please try again shortly.');
+  },8000);
+
   const { error } = await getSupabase().auth.signInWithOtp({
     email,
     options: { shouldCreateUser: false }
   });
 
+  clearTimeout(timeoutId);
+
   btn.textContent='📧 Send OTP Code';
   btn.disabled=false;
 
   if(error){
-    showLoginError(error.message==='Signups not allowed for otp'
-      ? 'This email is not registered. Please contact your admin.'
-      : error.message);
+    const msg = typeof error === 'string' ? error
+      : error.message || error.msg || JSON.stringify(error);
+    showLoginError(
+      msg.toLowerCase().includes('rate') || msg.toLowerCase().includes('limit')
+        ? '⏳ Too many attempts. Please wait a few minutes and try again.'
+        : msg.toLowerCase().includes('not allowed') || msg.toLowerCase().includes('not found')
+        ? '❌ This email is not registered. Please contact your admin.'
+        : msg || 'Something went wrong. Please try again.'
+    );
     return;
   }
 
