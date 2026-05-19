@@ -1359,11 +1359,57 @@ textarea.edit-input{resize:vertical;min-height:65px}
 /* ======================================================
    DATA STORE
 ====================================================== */
-let candidates = JSON.parse(localStorage.getItem('hs_candidates') || '[]');
+let candidates = [];
 let currentUser = null;
 let activeFilter = null;
 
-function saveData(){localStorage.setItem('hs_candidates',JSON.stringify(candidates))}
+// Load candidates from Supabase
+async function loadCandidates(){
+  const sb = getSupabase();
+  const { data, error } = await sb.from('candidates').select('*').order('added_at', { ascending: false });
+  if(error){ console.error('Load error:', error); return; }
+  // Map Supabase columns to app format
+  candidates = (data||[]).map(mapFromDB);
+  renderAll();
+}
+
+// Map DB row → app candidate object
+function mapFromDB(row){
+  return {
+    id: row.id,
+    name: row.name,
+    phone: row.phone||'',
+    role: row.role||'',
+    recruiter: row.recruiter||'',
+    stage: row.stage||'Offer Released',
+    lastContacted: row.last_contacted||'',
+    doj: row.doj||'',
+    notes: row.notes||'',
+    followup: row.followup||null,
+    addedAt: row.added_at||new Date().toISOString(),
+    addedBy: row.owner_name||''
+  };
+}
+
+// Map app candidate object → DB row
+function mapToDB(c){
+  return {
+    id: c.id,
+    owner_id: currentUser.id,
+    owner_name: currentUser.name,
+    name: c.name,
+    phone: c.phone||null,
+    role: c.role||null,
+    recruiter: c.recruiter||null,
+    stage: c.stage||'Offer Released',
+    last_contacted: c.lastContacted||null,
+    doj: c.doj||null,
+    notes: c.notes||null,
+    followup: c.followup||null
+  };
+}
+
+async function saveData(){ /* no-op: saves happen per operation */ }
 
 /* ======================================================
    PARTICLES
@@ -1505,6 +1551,8 @@ function initApp(){
   }
   renderAll();
   toast(`Welcome back, ${currentUser.name}! AI Engine is active.`,'success');
+  // Load candidates from Supabase
+  loadCandidates();
   if(currentUser.role==='manager'){
     setTimeout(()=>{
       showSection('mgrdash');
@@ -1820,48 +1868,28 @@ function updateNavBadges(){
 /* ======================================================
    ADD / DELETE
 ====================================================== */
-function addCandidate(){
+async function addCandidate(){
   const name=document.getElementById('f-name').value.trim();
   if(!name){toast('Candidate name is required.','error');return;}
-  const c={
-    id:'c_'+Date.now()+'_'+Math.random().toString(36).slice(2),
-    name,
-    phone:document.getElementById('f-phone').value.trim(),
-    role:document.getElementById('f-role').value.trim(),
-    recruiter:document.getElementById('f-recruiter').value.trim(),
-    stage:document.getElementById('f-stage').value,
-    lastContacted:document.getElementById('f-last').value,
-    doj:document.getElementById('f-doj').value,
-    notes:document.getElementById('f-notes').value.trim(),
-    addedAt:new Date().toISOString(),
-    addedBy:currentUser?currentUser.name:'Unknown'
-  };
-  // Attach ORA assessment if any fields filled
   const oraNotes=document.getElementById('ora-notes')?document.getElementById('ora-notes').value.trim():'';
-  if(Object.keys(oraState).length>0||oraNotes){
-    c.followup={...oraState,recruiter_notes:oraNotes,filledAt:new Date().toISOString()};
-  }
+  const followup=Object.keys(oraState).length>0||oraNotes?{...oraState,recruiter_notes:oraNotes,filledAt:new Date().toISOString()}:null;
+  const newRow={
+    owner_id:currentUser.id,owner_name:currentUser.name,name,
+    phone:document.getElementById('f-phone').value.trim()||null,
+    role:document.getElementById('f-role').value.trim()||null,
+    recruiter:document.getElementById('f-recruiter').value.trim()||null,
+    stage:document.getElementById('f-stage').value,
+    last_contacted:document.getElementById('f-last').value||null,
+    doj:document.getElementById('f-doj').value||null,
+    notes:document.getElementById('f-notes').value.trim()||null,
+    followup
+  };
+  const {data,error}=await getSupabase().from('candidates').insert(newRow).select().single();
+  if(error){toast('Error adding candidate: '+error.message,'error');return;}
+  const c=mapFromDB(data);
   candidates.unshift(c);
-  saveData();
-  // Log activity
-  logActivity({
-    type:'add',
-    recruiter:c.recruiter||currentUser.name,
-    message:`Added candidate <strong>${c.name}</strong> — ${c.stage}`,
-    candidateId:c.id,
-    ts:new Date().toISOString()
-  });
-  // Queue manager notification
-  queueManagerNotification({
-    type:'new_candidate',
-    recruiter:c.recruiter||currentUser.name,
-    candidateName:c.name,
-    role:c.role,
-    stage:c.stage,
-    ts:new Date().toISOString(),
-    read:false
-  });
-  // Send email notification to manager
+  logActivity({type:'add',recruiter:currentUser.name,message:`Added candidate <strong>${name}</strong> — ${newRow.stage}`,ts:new Date().toISOString()});
+  queueManagerNotification({type:'new_candidate',recruiter:currentUser.name,candidateName:name,role:newRow.role,stage:newRow.stage,ts:new Date().toISOString(),read:false});
   sendManagerUpdateEmail(c);
   ['f-name','f-phone','f-role','f-recruiter','f-last','f-doj','f-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-stage').value='Offer Released';
@@ -1870,12 +1898,13 @@ function addCandidate(){
   toast(`${name} added to intelligence pipeline.`,'success');
 }
 
-function deleteCandidate(id){
+async function deleteCandidate(id){
   const c=candidates.find(x=>x.id===id);
   if(!c)return;
   if(!confirm(`Remove ${c.name} from the pipeline?`))return;
+  const {error}=await getSupabase().from('candidates').delete().eq('id',id);
+  if(error){toast('Error deleting: '+error.message,'error');return;}
   candidates=candidates.filter(x=>x.id!==id);
-  saveData();
   renderAll();
   toast(`${c.name} removed.`,'info');
 }
@@ -1883,7 +1912,7 @@ function deleteCandidate(id){
 /* ======================================================
    DEMO DATA
 ====================================================== */
-function loadDemoData(){
+async function loadDemoData(){
   const demos=[
     {name:'Priya Sharma',phone:'+91 98765 43210',role:'Senior Software Engineer',recruiter:'Rahul Mehta',stage:'Offer Accepted',lastContacted:daysAgo(5),doj:daysAhead(10),notes:'Another offer from competing company. Seems hesitant about relocation.'},
     {name:'Arjun Nair',phone:'+91 87654 32109',role:'Product Manager',recruiter:'Sneha Kapoor',stage:'Offer Follow-up',lastContacted:daysAgo(2),doj:daysAhead(25),notes:'Very excited about the role. Confirmed availability.'},
@@ -1895,15 +1924,17 @@ function loadDemoData(){
     {name:'Sanket Joshi',phone:'+91 21098 76543',role:'ML Engineer',recruiter:'Anita Rao',stage:'Offer Accepted',lastContacted:daysAgo(3),doj:daysAhead(15),notes:''},
   ];
   const existing=new Set(candidates.map(c=>c.name));
-  let added=0;
-  demos.forEach(d=>{
-    if(!existing.has(d.name)){
-      candidates.unshift({...d,id:'c_'+Date.now()+'_'+Math.random().toString(36).slice(2),addedAt:new Date().toISOString()});
-      added++;
-    }
-  });
-  saveData();renderAll();
-  toast(`${added} demo candidates loaded successfully.`,'success');
+  const toInsert=demos.filter(d=>!existing.has(d.name)).map(d=>({
+    owner_id:currentUser.id,owner_name:currentUser.name,
+    name:d.name,phone:d.phone||null,role:d.role||null,recruiter:d.recruiter||null,
+    stage:d.stage,last_contacted:d.lastContacted||null,doj:d.doj||null,notes:d.notes||null
+  }));
+  if(!toInsert.length){toast('Demo data already loaded.','info');return;}
+  const {data,error}=await getSupabase().from('candidates').insert(toInsert).select();
+  if(error){toast('Error loading demo data: '+error.message,'error');return;}
+  candidates=[...(data||[]).map(mapFromDB),...candidates];
+  renderAll();
+  toast(`${toInsert.length} demo candidates loaded successfully.`,'success');
 }
 
 function daysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().slice(0,10)}
@@ -1916,31 +1947,32 @@ function handleFileUpload(e){
   const file=e.target.files[0];
   if(!file){return;}
   const reader=new FileReader();
-  reader.onload=function(ev){
+  reader.onload=async function(ev){
     try{
       const wb=XLSX.read(ev.target.result,{type:'binary'});
       const ws=wb.Sheets[wb.SheetNames[0]];
-      const data=XLSX.utils.sheet_to_json(ws,{defval:''});
-      let added=0;
-      data.forEach(row=>{
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      const toInsert=rows.map(row=>{
         const name=(row['Candidate Name']||row['Name']||'').trim();
-        if(!name)return;
-        candidates.unshift({
-          id:'c_'+Date.now()+'_'+Math.random().toString(36).slice(2),
+        if(!name)return null;
+        return {
+          owner_id:currentUser.id,owner_name:currentUser.name,
           name,
-          phone:(row['Phone Number']||row['Phone']||'').toString(),
-          role:(row['Role']||'').toString(),
-          recruiter:(row['Recruiter Name']||row['Recruiter']||'').toString(),
-          stage:(row['Current Stage']||row['Stage']||'Interview Scheduled').toString(),
-          lastContacted:(row['Last Contacted Date']||row['Last Contacted']||'').toString(),
-          doj:(row['Important Date']||row['DOJ']||'').toString(),
-          notes:(row['Notes']||row['Candidate Notes']||'').toString(),
-          addedAt:new Date().toISOString()
-        });
-        added++;
-      });
-      saveData();renderAll();
-      toast(`${added} candidates imported from file.`,'success');
+          phone:(row['Phone Number']||row['Phone']||'').toString()||null,
+          role:(row['Role']||'').toString()||null,
+          recruiter:(row['Recruiter Name']||row['Recruiter']||'').toString()||null,
+          stage:(row['Current Stage']||row['Stage']||'Offer Released').toString(),
+          last_contacted:(row['Last Contacted Date']||row['Last Contacted']||'')||null,
+          doj:(row['Important Date']||row['DOJ']||'')||null,
+          notes:(row['Notes']||row['Candidate Notes']||'')||null
+        };
+      }).filter(Boolean);
+      if(!toInsert.length){toast('No valid rows found in file.','error');return;}
+      const {data,error}=await getSupabase().from('candidates').insert(toInsert).select();
+      if(error){toast('Import error: '+error.message,'error');return;}
+      candidates=[...(data||[]).map(mapFromDB),...candidates];
+      renderAll();
+      toast(`${toInsert.length} candidates imported from file.`,'success');
     }catch(err){toast('File parsing error. Please check the format.','error');}
   };
   reader.readAsBinaryString(file);
@@ -2812,18 +2844,19 @@ function getQuestSignals(fup){
   return signals;
 }
 
-function saveQuestionnaire(){
+async function saveQuestionnaire(){
   const c=candidates.find(x=>x.id===currentQuestCandidateId);
   if(!c)return;
   questState.recruiter_notes=document.getElementById('qf-recruiter-notes').value.trim();
   questState.filledAt=new Date().toISOString();
-  c.followup={...questState};
-  saveData();
+  const followup={...questState};
+  const {error}=await getSupabase().from('candidates').update({followup}).eq('id',c.id);
+  if(error){toast('Error saving questionnaire: '+error.message,'error');return;}
+  c.followup=followup;
   renderAll();
-  logActivity({type:'update',recruiter:currentUser?currentUser.name:'Recruiter',message:`Follow-up form updated for <strong>${c.name}</strong>`,candidateId:c.id,ts:new Date().toISOString()});
+  logActivity({type:'update',recruiter:currentUser?currentUser.name:'Recruiter',message:`Follow-up form updated for <strong>${c.name}</strong>`,ts:new Date().toISOString()});
   toast(`Follow-up questionnaire saved for ${c.name}. AI risk recalculated.`,'success');
   closeQuestionnaire();
-  // Auto-open CC to show updated analysis
   setTimeout(()=>openCC(c.id),300);
 }
 
@@ -2867,29 +2900,31 @@ function closeEditModal(){
   editingCandidateId=null;
 }
 
-function saveEditCandidate(){
+async function saveEditCandidate(){
   const name=document.getElementById('e-name').value.trim();
   if(!name){toast('Candidate name is required.','error');return;}
   const idx=candidates.findIndex(c=>c.id===editingCandidateId);
   if(idx===-1){toast('Candidate not found.','error');return;}
   const eoNotes=document.getElementById('eora-notes')?document.getElementById('eora-notes').value.trim():'';
-  const updatedFollowup=Object.keys(eoraState).length>0||eoNotes
+  const followup=Object.keys(eoraState).length>0||eoNotes
     ?{...eoraState,recruiter_notes:eoNotes,filledAt:candidates[idx].followup?.filledAt||new Date().toISOString()}
     :candidates[idx].followup;
-  candidates[idx]={
-    ...candidates[idx],
+  const updates={
     name,
-    phone:document.getElementById('e-phone').value.trim(),
-    role:document.getElementById('e-role').value.trim(),
-    recruiter:document.getElementById('e-recruiter').value.trim(),
+    phone:document.getElementById('e-phone').value.trim()||null,
+    role:document.getElementById('e-role').value.trim()||null,
+    recruiter:document.getElementById('e-recruiter').value.trim()||null,
     stage:document.getElementById('e-stage').value,
-    lastContacted:document.getElementById('e-last').value,
-    doj:document.getElementById('e-doj').value,
-    notes:document.getElementById('e-notes').value.trim(),
-    followup:updatedFollowup,
-    updatedAt:new Date().toISOString()
+    last_contacted:document.getElementById('e-last').value||null,
+    doj:document.getElementById('e-doj').value||null,
+    notes:document.getElementById('e-notes').value.trim()||null,
+    followup,
+    updated_at:new Date().toISOString()
   };
-  saveData();renderAll();
+  const {error}=await getSupabase().from('candidates').update(updates).eq('id',editingCandidateId);
+  if(error){toast('Error saving: '+error.message,'error');return;}
+  candidates[idx]={...candidates[idx],...mapFromDB({...candidates[idx],...updates,id:editingCandidateId,last_contacted:updates.last_contacted,doj:updates.doj,added_at:candidates[idx].addedAt,followup})};
+  renderAll();
   logActivity({type:'update',recruiter:currentUser?currentUser.name:'Recruiter',message:`Updated candidate <strong>${name}</strong>`,ts:new Date().toISOString()});
   toast(`${name} updated successfully. AI risk recalculated.`,'success');
   closeEditModal();
