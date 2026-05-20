@@ -722,8 +722,10 @@ textarea.edit-input{resize:vertical;min-height:65px}
           <div class="user-name" id="user-name">User</div>
           <div class="user-role" id="user-role-badge">Recruiter</div>
         </div>
-        <button class="btn-logout" onclick="doLogout()" title="Logout">⏏</button>
       </div>
+      <button onclick="doLogout()" style="width:100%;margin-top:.5rem;padding:.5rem;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;color:#dc2626;font-size:.78rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">
+        🚪 Sign Out
+      </button>
     </div>
   </nav>
 
@@ -948,6 +950,7 @@ textarea.edit-input{resize:vertical;min-height:65px}
                 <th>Role</th>
                 <th>Stage</th>
                 <th>DOJ</th>
+                <th>Current CTC</th>
                 <th>Offered CTC</th>
                 <th>AI Risk</th>
                 <th>Join %</th>
@@ -982,7 +985,7 @@ textarea.edit-input{resize:vertical;min-height:65px}
           <table>
             <thead>
               <tr>
-                <th>Candidate</th><th>Phone</th><th>Role</th><th>Stage</th><th>DOJ</th><th>Offered CTC</th><th>AI Risk</th><th>Join %</th><th>Escalation</th><th>Actions</th>
+                <th>Candidate</th><th>Phone</th><th>Role</th><th>Stage</th><th>DOJ</th><th>Current CTC</th><th>Offered CTC</th><th>AI Risk</th><th>Join %</th><th>Escalation</th><th>Actions</th>
               </tr>
             </thead>
             <tbody id="candidate-tbody-2"></tbody>
@@ -1519,10 +1522,15 @@ function showLoadingThenApp(){
 async function doLogout(){
   await getSupabase().auth.signOut();
   currentUser=null;
+  candidates=[];
+  // Reset UI fully
   document.getElementById('app').style.display='none';
   document.getElementById('login-page').style.display='flex';
   document.getElementById('login-error').style.display='none';
-  document.getElementById('login-password').value='';
+  if(document.getElementById('login-password'))document.getElementById('login-password').value='';
+  if(document.getElementById('login-email'))document.getElementById('login-email').value='';
+  // Clear any cached state
+  localStorage.removeItem('hs_candidates');
   toast('Signed out successfully.','info');
 }
 
@@ -1567,8 +1575,8 @@ async function autoLogin(){
 function initApp(){
   document.getElementById('app').style.display='block';
   document.getElementById('user-name').textContent=currentUser.name;
-  document.getElementById('user-role-badge').textContent=currentUser.role.charAt(0).toUpperCase()+currentUser.role.slice(1);
-  document.getElementById('user-avatar').textContent=currentUser.name.charAt(0);
+  document.getElementById('user-role-badge').textContent=currentUser.role==='manager'?'Manager':'Recruiter';
+  const _ini=currentUser.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);document.getElementById('user-avatar').textContent=_ini;
   if(currentUser.role==='manager'){
     document.getElementById('mgr-nav-label').style.display='';
     document.getElementById('nav-mgrdash').classList.remove('hidden');
@@ -1846,10 +1854,12 @@ function renderTableInto(tbodyId,list){
       <td style="font-size:.8rem;color:var(--text-muted)">${esc(c.role||'—')}</td>
       <td><span class="stage-badge ${stageCls}">${esc(c.stage)}</span></td>
       <td style="font-size:.78rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace">${dojFmt}</td>
+      <td style="font-size:.78rem;font-family:'JetBrains Mono',monospace">
+        ${c.followup&&c.followup.current_ctc?`<strong style="color:#111827">₹${c.followup.current_ctc}L</strong>`:'<span style="color:var(--text-muted)">—</span>'}
+      </td>
       <td style="font-size:.75rem">
-        ${c.followup&&(c.followup.current_ctc||c.followup.fixed_ctc)?`
-          ${c.followup.current_ctc?`<div style="color:var(--text-muted);font-size:.68rem">Curr: <strong style="color:#374151">₹${c.followup.current_ctc}L</strong></div>`:''}
-          ${c.followup.fixed_ctc?`<div style="color:#111827;font-weight:600">Offr: ₹${c.followup.fixed_ctc}L Fixed</div>`:''}
+        ${c.followup&&c.followup.fixed_ctc?`
+          <div style="color:#111827;font-weight:600">₹${c.followup.fixed_ctc}L Fixed</div>
           ${c.followup.variable_ctc?`<div style="color:var(--text-muted);font-size:.68rem">+₹${c.followup.variable_ctc}L Var</div>`:''}
         `:'<span style="color:var(--text-muted)">—</span>'}
       </td>
@@ -2118,7 +2128,7 @@ function renderHeatmap(){
   if(!grid)return;
   const recruiterMap={};
   candidates.forEach(c=>{
-    const r=c.recruiter||'Unknown';
+    const r=c.addedBy||c.recruiter||'Unknown';
     if(!recruiterMap[r])recruiterMap[r]={name:r,high:0,total:0,escCount:0};
     recruiterMap[r].total++;
     const risk=calcRisk(c);
@@ -3136,7 +3146,8 @@ function getRecruiterStats(){
   const map={};
   const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
   candidates.forEach(c=>{
-    const r=c.recruiter||'Unassigned';
+    // Use owner_name (the logged-in recruiter's real name) for grouping
+    const r=c.addedBy||c.recruiter||'Unassigned';
     if(!map[r])map[r]={name:r,total:0,thisWeek:0,high:0,escalation:0,joinProbSum:0,joinProbCount:0,maxGap:0,recentCandidates:[]};
     const risk=calcRisk(c);
     map[r].total++;
