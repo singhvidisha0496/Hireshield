@@ -754,10 +754,6 @@ textarea.edit-input{resize:vertical;min-height:65px}
         <div class="panel">
           <div class="panel-header">
             <div class="panel-title"><span class="title-icon">➕</span> Add Candidate</div>
-            <div class="flex gap-2">
-              <label class="btn btn-secondary btn-sm pointer" for="csv-upload">📂 Upload CSV</label>
-              <input type="file" id="csv-upload" accept=".xlsx,.csv" class="hidden" onchange="handleFileUpload(event)">
-            </div>
           </div>
           <div class="add-form" id="add-form">
             <div class="form-field">
@@ -893,7 +889,6 @@ textarea.edit-input{resize:vertical;min-height:65px}
                 </div>
               </div>
               <button class="btn btn-primary" onclick="addCandidate()">➕ Add Candidate</button>
-              <button class="btn btn-secondary" onclick="loadDemoData()">🎲 Load Demo Data</button>
             </div>
           </div>
         </div>
@@ -1381,9 +1376,13 @@ let activeFilter = null;
 // Load candidates from Supabase
 async function loadCandidates(){
   const sb = getSupabase();
-  const { data, error } = await sb.from('candidates').select('*').order('added_at', { ascending: false });
+  let query = sb.from('candidates').select('*').order('added_at', { ascending: false });
+  // Recruiters only see their own; manager sees all
+  if(currentUser.role !== 'manager'){
+    query = query.eq('owner_id', currentUser.id);
+  }
+  const { data, error } = await query;
   if(error){ console.error('Load error:', error); return; }
-  // Map Supabase columns to app format
   candidates = (data||[]).map(mapFromDB);
   renderAll();
 }
@@ -1847,7 +1846,13 @@ function renderTableInto(tbodyId,list){
       <td style="font-size:.8rem;color:var(--text-muted)">${esc(c.role||'—')}</td>
       <td><span class="stage-badge ${stageCls}">${esc(c.stage)}</span></td>
       <td style="font-size:.78rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace">${dojFmt}</td>
-      <td style="font-size:.75rem">${c.followup&&c.followup.fixed_ctc?`<div style="color:#111827;font-weight:600">₹${c.followup.fixed_ctc}L Fixed</div>${c.followup.variable_ctc?`<div style="color:var(--text-muted);font-size:.68rem">+₹${c.followup.variable_ctc}L Var</div>`:''}`:'<span style="color:var(--text-muted)">—</span>'}</td>
+      <td style="font-size:.75rem">
+        ${c.followup&&(c.followup.current_ctc||c.followup.fixed_ctc)?`
+          ${c.followup.current_ctc?`<div style="color:var(--text-muted);font-size:.68rem">Curr: <strong style="color:#374151">₹${c.followup.current_ctc}L</strong></div>`:''}
+          ${c.followup.fixed_ctc?`<div style="color:#111827;font-weight:600">Offr: ₹${c.followup.fixed_ctc}L Fixed</div>`:''}
+          ${c.followup.variable_ctc?`<div style="color:var(--text-muted);font-size:.68rem">+₹${c.followup.variable_ctc}L Var</div>`:''}
+        `:'<span style="color:var(--text-muted)">—</span>'}
+      </td>
       <td><span class="risk-badge ${riskCls}">${r.riskLevel==='High'?'🔴':r.riskLevel==='Medium'?'🟡':'🟢'} ${r.riskLevel}</span></td>
       <td><div class="prob-bar-wrap"><div class="prob-bar"><div class="prob-fill" style="width:${r.joinProb}%;background:${probColor}"></div></div><span style="font-size:.72rem;color:${probColor};font-weight:600;font-family:'JetBrains Mono',monospace">${r.joinProb}%</span></div></td>
       <td><span class="esc-badge ${escCls}">${r.escalation}</span></td>
