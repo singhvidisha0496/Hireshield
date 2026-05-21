@@ -201,7 +201,7 @@ textarea.field-input{resize:vertical;min-height:65px}
 .filters-row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:.9rem}
 .filter-input{background:#ffffff;border:1px solid var(--border);border-radius:7px;padding:.45rem .8rem;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.79rem;outline:none;transition:all .18s}
 .filter-input:focus{border-color:var(--accent)}
-.filter-input option{background:#1a1208}
+.filter-input option{background:#ffffff;color:#111827}
 .search-wrap{position:relative;flex:1;min-width:180px}
 .search-icon{position:absolute;left:.7rem;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:.85rem;pointer-events:none}
 .search-wrap .filter-input{padding-left:2rem;width:100%}
@@ -1589,6 +1589,13 @@ function initApp(){
     document.getElementById('nav-heatmap').classList.remove('hidden');
     document.getElementById('nav-health').classList.remove('hidden');
     document.getElementById('nav-escalation').classList.remove('hidden');
+  } else {
+    // Explicitly hide manager nav for recruiters
+    document.getElementById('mgr-nav-label').style.display='none';
+    document.getElementById('nav-mgrdash').classList.add('hidden');
+    document.getElementById('nav-heatmap').classList.add('hidden');
+    document.getElementById('nav-health').classList.add('hidden');
+    document.getElementById('nav-escalation').classList.add('hidden');
   }
   renderAll();
   toast(`Welcome back, ${currentUser.name}! AI Engine is active.`,'success');
@@ -2468,6 +2475,9 @@ function closeCCOnOverlay(e){if(e.target===document.getElementById('cc-modal'))c
    NAVIGATION
 ====================================================== */
 function showSection(id){
+  // Block manager sections for recruiters
+  const managerOnly=['mgrdash','heatmap','health','escalation'];
+  if(managerOnly.includes(id)&&currentUser&&currentUser.role!=='manager') return;
   const sections=['dashboard','candidates','followup','priority','analytics','heatmap','health','escalation','emaillog','mgrdash'];
   sections.forEach(s=>{
     const el=document.getElementById('section-'+s);
