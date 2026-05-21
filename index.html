@@ -306,9 +306,9 @@ td{padding:.6rem .7rem;font-size:.8rem;vertical-align:middle}
 
 /* ─── ANALYTICS ─── */
 .analytics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.85rem}
-.analytics-card{background:rgba(20,14,5,.8);border:1px solid var(--border);border-radius:12px;padding:1rem}
-.analytics-card .a-label{font-size:.67rem;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);margin-bottom:.4rem;font-weight:600}
-.analytics-card .a-value{font-family:'Syne',sans-serif;font-size:1.65rem;font-weight:800}
+.analytics-card{background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.analytics-card .a-label{font-size:.67rem;text-transform:uppercase;letter-spacing:.09em;color:#64748b;margin-bottom:.4rem;font-weight:600}
+.analytics-card .a-value{font-family:'Syne',sans-serif;font-size:1.65rem;font-weight:800;color:#111827}
 .analytics-card .a-chart{height:36px;display:flex;align-items:flex-end;gap:2px;margin-top:.65rem}
 .bar-col{flex:1;border-radius:2px 2px 0 0;transition:height .5s ease}
 
@@ -1392,6 +1392,7 @@ async function loadCandidates(){
     rows = rows.filter(r => r.owner_id === currentUser.id);
   }
   candidates = rows.map(mapFromDB);
+  buildActivityFromCandidates();
   renderAll();
 }
 
@@ -3052,19 +3053,39 @@ function restoreEoraButtons(){
 /* ======================================================
    ACTIVITY LOG
 ====================================================== */
-let activityLog=JSON.parse(localStorage.getItem('hs_activity')||'[]');
-function saveActivityLog(){localStorage.setItem('hs_activity',JSON.stringify(activityLog));}
+let activityLog=[];
+function saveActivityLog(){ /* activity is real-time, no persistence needed */ }
 
 function logActivity(entry){
   activityLog.unshift(entry);
-  if(activityLog.length>200)activityLog=activityLog.slice(0,200);
-  saveActivityLog();
+  if(activityLog.length>50)activityLog=activityLog.slice(0,50);
+  renderActivityFeed();
 }
 
 function clearActivityFeed(){
-  activityLog=[];saveActivityLog();
+  activityLog=[];
   const feed=document.getElementById('activity-feed');
   if(feed)feed.innerHTML='<div style="color:var(--text-muted);font-size:.82rem;padding:.5rem">No activity yet.</div>';
+}
+
+// Build activity feed from live candidates data (real-time, no localStorage)
+function buildActivityFromCandidates(){
+  activityLog=[];
+  const today=new Date();
+  today.setHours(0,0,0,0);
+  // Only show activity from today onwards
+  candidates.forEach(c=>{
+    if(c.addedAt&&new Date(c.addedAt)>=today){
+      activityLog.push({
+        type:'add',
+        recruiter:c.addedBy||c.recruiter||'Recruiter',
+        message:`Added candidate <strong>${esc(c.name)}</strong> — ${c.stage}`,
+        ts:c.addedAt
+      });
+    }
+  });
+  activityLog.sort((a,b)=>new Date(b.ts)-new Date(a.ts));
+  renderActivityFeed();
 }
 
 function renderActivityFeed(){
