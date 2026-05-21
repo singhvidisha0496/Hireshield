@@ -1380,13 +1380,18 @@ let activeFilter = null;
 async function loadCandidates(){
   const sb = getSupabase();
   let query = sb.from('candidates').select('*').order('added_at', { ascending: false });
-  // Recruiters only see their own; manager sees all
+  // Always filter by owner for recruiters — never trust RLS alone
   if(currentUser.role !== 'manager'){
     query = query.eq('owner_id', currentUser.id);
   }
   const { data, error } = await query;
-  if(error){ console.error('Load error:', error); return; }
-  candidates = (data||[]).map(mapFromDB);
+  if(error){ console.error('Load error:', error); toast('Error loading candidates: '+error.message,'error'); return; }
+  // Extra JS safety filter — if Supabase returns rows not belonging to this user, strip them
+  let rows = data || [];
+  if(currentUser.role !== 'manager'){
+    rows = rows.filter(r => r.owner_id === currentUser.id);
+  }
+  candidates = rows.map(mapFromDB);
   renderAll();
 }
 
