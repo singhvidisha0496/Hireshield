@@ -120,7 +120,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg-deep);color:var(--text
 
 /* ─── APP LAYOUT ─── */
 #app{display:none;min-height:100vh;position:relative;z-index:1}
-.sidebar{position:fixed;left:0;top:0;bottom:0;width:236px;background:#ffffff;border-right:1px solid rgba(37,99,235,.1);box-shadow:2px 0 12px rgba(0,0,0,.04);z-index:50;display:flex;flex-direction:column;padding:1.25rem 0;transition:transform .3s;overflow-y:auto;overflow-x:hidden}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:236px;background:#ffffff;border-right:1px solid rgba(37,99,235,.1);box-shadow:2px 0 12px rgba(0,0,0,.04);z-index:50;display:flex;flex-direction:column;transition:transform .3s;overflow:hidden}
 .sidebar-logo{padding:0 1.25rem 1.25rem;border-bottom:1px solid var(--border)}
 .sidebar-logo-mark{display:flex;align-items:center;gap:.6rem}
 .sidebar-logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--accent3),var(--accent));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0}
@@ -325,7 +325,7 @@ td{padding:.6rem .7rem;font-size:.8rem;vertical-align:middle}
 .pq-time{font-size:.65rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace;white-space:nowrap}
 
 /* ─── MANAGER SECTIONS ─── */
-.hiring-health-score{display:flex;align-items:center;gap:1.25rem;padding:1.1rem;background:rgba(79,142,247,.06);border:1px solid rgba(200,146,26,.18);border-radius:12px;margin-bottom:.85rem}
+.hiring-health-score{display:flex;align-items:center;gap:1.25rem;padding:1.1rem;background:#f0fdf4;border:1px solid #86efac;border-radius:12px;margin-bottom:.85rem}
 .hhs-ring{width:72px;height:72px;position:relative;flex-shrink:0}
 .hhs-ring svg{transform:rotate(-90deg)}
 .hhs-score-text{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
@@ -338,11 +338,11 @@ td{padding:.6rem .7rem;font-size:.8rem;vertical-align:middle}
 .hhs-metric{font-size:.7rem;color:var(--text-muted)}
 .hhs-metric-val{font-weight:700;color:var(--accent2)}
 .bottleneck-items{display:flex;flex-direction:column;gap:.4rem}
-.bottleneck-item{display:flex;align-items:center;gap:.65rem;padding:.55rem .8rem;background:rgba(251,191,36,.04);border:1px solid rgba(232,160,40,.15);border-radius:9px}
-.bottleneck-stage{font-size:.72rem;font-weight:600;color:var(--warning);min-width:130px}
-.bottleneck-bar-wrap{flex:1;height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden}
+.bottleneck-item{display:flex;align-items:center;gap:.65rem;padding:.55rem .8rem;background:#fffbeb;border:1px solid #fde68a;border-radius:9px}
+.bottleneck-stage{font-size:.72rem;font-weight:600;color:#92400e;min-width:130px}
+.bottleneck-bar-wrap{flex:1;height:4px;background:#e5e7eb;border-radius:2px;overflow:hidden}
 .bottleneck-bar{height:100%;background:linear-gradient(90deg,rgba(251,191,36,.7),rgba(232,160,40,.4));border-radius:2px}
-.bottleneck-count{font-size:.68rem;color:var(--text-muted);min-width:35px;text-align:right;font-family:'JetBrains Mono',monospace}
+.bottleneck-count{font-size:.68rem;color:#374151;min-width:35px;text-align:right;font-family:'JetBrains Mono',monospace}
 
 /* ─── TOAST ─── */
 #toast-container{position:fixed;top:1.1rem;right:1.1rem;z-index:9999;display:flex;flex-direction:column;gap:.4rem;pointer-events:none}
@@ -673,8 +673,7 @@ textarea.edit-input{resize:vertical;min-height:65px}
         <span class="sidebar-brand syne">HireShield AI</span>
       </div>
     </div>
-
-    <div class="nav-section">Platform</div>
+    <div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:1.25rem 0 0">
     <div class="nav-item active" onclick="showSection('dashboard')">
       <span class="nav-icon">📊</span> Dashboard
     </div>
@@ -715,6 +714,7 @@ textarea.edit-input{resize:vertical;min-height:65px}
       <span class="nav-badge" id="nav-badge-email" style="background:var(--success)">0</span>
     </div>
 
+    </div>
     <div class="sidebar-bottom">
       <div class="user-card">
         <div class="user-avatar" id="user-avatar">R</div>
