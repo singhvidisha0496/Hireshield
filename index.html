@@ -1767,6 +1767,7 @@ function calcRisk(c){
 function renderStats(){
   const high=candidates.filter(c=>calcRisk(c).riskLevel==='High').length;
   const needFollowup=candidates.filter(c=>{
+    if(c.stage==='Joined'||c.stage==='Offer Declined')return false;
     const last=c.lastContacted?new Date(c.lastContacted):null;
     if(!last)return true;
     return Math.floor((new Date()-last)/(86400000))>=3;
@@ -1915,8 +1916,9 @@ function updateRecruiterFilter(){
 }
 
 function updateNavBadges(){
+  const open=candidates.filter(c=>c.stage!=='Joined'&&c.stage!=='Offer Declined');
   document.getElementById('nav-badge-cand').textContent=candidates.length;
-  const fu=candidates.filter(c=>{const l=c.lastContacted?new Date(c.lastContacted):null;if(!l)return true;return Math.floor((new Date()-l)/86400000)>=3;}).length;
+  const fu=open.filter(c=>{const l=c.lastContacted?new Date(c.lastContacted):null;if(!l)return true;return Math.floor((new Date()-l)/86400000)>=3;}).length;
   document.getElementById('nav-badge-fu').textContent=fu;
 }
 
@@ -2115,7 +2117,7 @@ function renderAnalytics(){
   const confirmed=candidates.filter(c=>c.stage==='Joined').length;
   const avgProb=candidates.length?Math.round(candidates.reduce((s,c)=>s+calcRisk(c).joinProb,0)/candidates.length):0;
   const hiringHealth=Math.max(10,100-Math.round(high/total*100));
-  const escCount=candidates.filter(c=>calcRisk(c).escalation==='Critical').length;
+  const escCount=candidates.filter(c=>c.stage!=='Joined'&&c.stage!=='Offer Declined'&&calcRisk(c).escalation==='Critical').length;
   
   const metrics=[
     {label:'Hiring Health Score',value:hiringHealth+'%',color:'var(--success)',bars:[72,65,80,hiringHealth,hiringHealth-5,hiringHealth+3,hiringHealth]},
@@ -2228,7 +2230,7 @@ function renderBottlenecks(){
 function renderEscalationOverview(){
   const list=document.getElementById('escalation-list');
   if(!list)return;
-  const critical=candidates.filter(c=>calcRisk(c).escalation==='Critical');
+  const critical=candidates.filter(c=>c.stage!=='Joined'&&c.stage!=='Offer Declined'&&calcRisk(c).escalation==='Critical');
   list.innerHTML=critical.map(c=>{
     const r=calcRisk(c);
     return `<div class="pq-item" onclick="openCC('${c.id}')">
@@ -2507,8 +2509,9 @@ function openSidebar(){document.getElementById('sidebar').classList.add('open');
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('mobile-overlay').classList.remove('active')}
 
 function showNotifications(){
-  const crit=candidates.filter(c=>calcRisk(c).escalation==='Critical').length;
-  const fu=candidates.filter(c=>{const l=c.lastContacted?new Date(c.lastContacted):null;if(!l)return true;return Math.floor((new Date()-l)/86400000)>=3;}).length;
+  const open=candidates.filter(c=>c.stage!=='Joined'&&c.stage!=='Offer Declined');
+  const crit=open.filter(c=>calcRisk(c).escalation==='Critical').length;
+  const fu=open.filter(c=>{const l=c.lastContacted?new Date(c.lastContacted):null;if(!l)return true;return Math.floor((new Date()-l)/86400000)>=3;}).length;
   toast(`${crit} critical escalation${crit!==1?'s':''} · ${fu} follow-up${fu!==1?'s':''} pending`,'warning',4000);
 }
 
