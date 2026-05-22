@@ -773,13 +773,12 @@ textarea.edit-input{resize:vertical;min-height:65px}
             <div class="form-field">
               <label>Offer Stage</label>
               <select id="f-stage" class="field-input" style="background:#fff;color:#111827;border:1px solid #d1d5db">
+
                 <option value="Offer Released">Offer Released</option>
                 <option value="Offer Accepted">Offer Accepted</option>
-                <option value="Offer Follow-up">Offer Follow-up</option>
-                <option value="DOJ Confirmation">DOJ Confirmation</option>
                 <option value="Documents Pending">Documents Pending</option>
+                <option value="Offer Declined">Offer Declined</option>
                 <option value="Joined">Joined</option>
-                <option value="Offer Dropped">Offer Dropped</option>
               </select>
             </div>
             <div class="form-field">
@@ -921,13 +920,12 @@ textarea.edit-input{resize:vertical;min-height:65px}
           </select>
           <select class="filter-input" id="filter-stage" onchange="renderTable()">
             <option value="">All Stages</option>
+
             <option value="Offer Released">Offer Released</option>
             <option value="Offer Accepted">Offer Accepted</option>
-            <option value="Offer Follow-up">Offer Follow-up</option>
-            <option value="DOJ Confirmation">DOJ Confirmation</option>
             <option value="Documents Pending">Documents Pending</option>
+            <option value="Offer Declined">Offer Declined</option>
             <option value="Joined">Joined</option>
-            <option value="Offer Dropped">Offer Dropped</option>
           </select>
           <select class="filter-input" id="filter-risk" onchange="renderTable()">
             <option value="">All Risk</option>
@@ -1263,13 +1261,12 @@ textarea.edit-input{resize:vertical;min-height:65px}
         <div class="edit-field"><label>Recruiter Name</label><input type="text" id="e-recruiter" class="edit-input" placeholder="Recruiter"></div>
         <div class="edit-field"><label>Offer Stage</label>
           <select id="e-stage" class="edit-input">
+
             <option value="Offer Released">Offer Released</option>
             <option value="Offer Accepted">Offer Accepted</option>
-            <option value="Offer Follow-up">Offer Follow-up</option>
-            <option value="DOJ Confirmation">DOJ Confirmation</option>
             <option value="Documents Pending">Documents Pending</option>
+            <option value="Offer Declined">Offer Declined</option>
             <option value="Joined">Joined</option>
-            <option value="Offer Dropped">Offer Dropped</option>
           </select>
         </div>
         <div class="edit-field"><label>Last Contacted</label><input type="date" id="e-last" class="edit-input"></div>
@@ -1648,7 +1645,7 @@ function calcRisk(c){
       changes:[{text:'Candidate has joined the organisation',type:'normal'}],
       hasFollowup:!!fup};
   }
-  if(c.stage==='Offer Dropped'){
+  if(c.stage==='Offer Declined'){
     return{riskScore:99,riskLevel:'High',joinProb:0,escalation:'Critical',
       mood:'❌ Withdrawn',recruiterGap:'—',
       action:{label:'🚨 Offer dropped — review required',priority:1},
@@ -1780,7 +1777,7 @@ function renderStats(){
     {label:'Total Candidates',value:candidates.length,icon:'👥',cls:'stat-1',change:`${candidates.length>0?'+'+candidates.length:0} total`,filter:'all'},
     {label:'High Risk',value:high,icon:'⚠️',cls:'stat-2',change:high>0?'Immediate attention':'All good',filter:'high'},
     {label:'Need Follow-up',value:needFollowup,icon:'📋',cls:'stat-3',change:'3+ days inactive',filter:'followup'},
-    {label:'Confirmed',value:confirmed,icon:'✅',cls:'stat-4',change:'Joining confirmed',filter:'confirmed'},
+    {label:'Joined',value:confirmed,icon:'✅',cls:'stat-4',change:'Successfully joined',filter:'confirmed'},
   ];
 
   const grid=document.getElementById('stats-grid');
@@ -1809,8 +1806,9 @@ function toggleFilter(f){
 function getFilteredCandidates(searchId='search-input'){
   let list=[...candidates];
   
-  if(activeFilter==='high')list=list.filter(c=>calcRisk(c).riskLevel==='High');
+  if(activeFilter==='high')list=list.filter(c=>calcRisk(c).riskLevel==='High'&&c.stage!=='Joined'&&c.stage!=='Offer Declined');
   else if(activeFilter==='followup')list=list.filter(c=>{
+    if(c.stage==='Joined'||c.stage==='Offer Declined')return false;
     const last=c.lastContacted?new Date(c.lastContacted):null;
     if(!last)return true;
     return Math.floor((new Date()-last)/86400000)>=3;
@@ -1852,10 +1850,11 @@ function renderTableInto(tbodyId,list){
       'Offer Released':'stage-interview',
       'Offer Accepted':'stage-offer',
       'Offer Follow-up':'stage-interview',
-      'DOJ Confirmation':'stage-confirmed',
+      'Offer Declined':'stage-docs',
+      
       'Documents Pending':'stage-docs',
       'Joined':'stage-confirmed',
-      'Offer Dropped':'stage-docs'
+      'Offer Declined':'stage-docs'
     }[c.stage]||'stage-interview';
     const riskCls=r.riskLevel==='High'?'risk-high':r.riskLevel==='Medium'?'risk-medium':'risk-low';
     const escCls=r.escalation==='Critical'?'esc-critical':r.escalation==='Watch'?'esc-watch':'esc-normal';
@@ -2050,10 +2049,10 @@ function handleFileUpload(e){
    PRIORITY QUEUE
 ====================================================== */
 function getPriorityItems(){
-  return candidates.map(c=>{
-    const r=calcRisk(c);
-    return{candidate:c,risk:r};
-  }).filter(x=>x.risk.riskLevel!=='Low'||x.risk.escalation!=='Normal')
+  return candidates
+    .filter(c=>c.stage!=='Joined'&&c.stage!=='Offer Declined')
+    .map(c=>({candidate:c,risk:calcRisk(c)}))
+    .filter(x=>x.risk.riskLevel!=='Low'||x.risk.escalation!=='Normal')
     .sort((a,b)=>b.risk.riskScore-a.risk.riskScore)
     .slice(0,12);
 }
@@ -2083,7 +2082,13 @@ function renderPriorityQueue(){
   // Follow-up list
   const fuList=document.getElementById('followup-list');
   if(fuList){
-    const fu=candidates.filter(c=>{const l=c.lastContacted?new Date(c.lastContacted):null;if(!l)return true;return Math.floor((new Date()-l)/86400000)>=3;});
+    const fu=candidates.filter(c=>{
+      // Exclude closed cases
+      if(c.stage==='Joined'||c.stage==='Offer Declined')return false;
+      const l=c.lastContacted?new Date(c.lastContacted):null;
+      if(!l)return true;
+      return Math.floor((new Date()-l)/86400000)>=3;
+    });
     fuList.innerHTML=fu.map(c=>{
       const r=calcRisk(c);
       const last=c.lastContacted?Math.floor((new Date()-new Date(c.lastContacted))/86400000):null;
@@ -2116,7 +2121,7 @@ function renderAnalytics(){
     {label:'Hiring Health Score',value:hiringHealth+'%',color:'var(--success)',bars:[72,65,80,hiringHealth,hiringHealth-5,hiringHealth+3,hiringHealth]},
     {label:'Avg Join Probability',value:avgProb+'%',color:'var(--accent2)',bars:[60,65,55,70,avgProb-5,avgProb+2,avgProb]},
     {label:'High Risk Candidates',value:high,color:'var(--danger2)',bars:[1,2,1,high+1,high,high-1,high]},
-    {label:'Confirmed Joiners',value:confirmed,color:'var(--success)',bars:[0,1,2,confirmed-1,confirmed,confirmed,confirmed]},
+    {label:'Joined',value:confirmed,color:'var(--success)',bars:[0,1,2,confirmed-1,confirmed,confirmed,confirmed]},
     {label:'Active Escalations',value:escCount,color:'var(--warning)',bars:[0,1,0,escCount,escCount+1,escCount,escCount]},
     {label:'Recruiter Efficiency',value:'78%',color:'var(--accent)',bars:[70,72,68,75,78,76,78]},
   ];
@@ -2209,7 +2214,7 @@ function renderHealthScore(){
 function renderBottlenecks(){
   const area=document.getElementById('bottleneck-area');
   if(!area)return;
-  const stages={'Offer Released':0,'Offer Accepted':0,'Offer Follow-up':0,'DOJ Confirmation':0,'Documents Pending':0,'Joined':0,'Offer Dropped':0};
+  const stages={'Offer Released':0,'Offer Accepted':0,'Documents Pending':0,'Offer Declined':0,'Joined':0};
   candidates.forEach(c=>{if(stages[c.stage]!==undefined)stages[c.stage]++;});
   const max=Math.max(...Object.values(stages),1);
   area.innerHTML=`<div class="bottleneck-items">`+Object.entries(stages).map(([s,n])=>`
@@ -2421,7 +2426,7 @@ function buildTimeline(c,r){
     events.push({event:'🚨 Escalation Warning Triggered',color:'danger',time:'Critical risk threshold crossed'});
   if(c.stage==='Joined')
     events.push({event:'🎉 Candidate Successfully Joined',color:'success',time:c.doj?new Date(c.doj).toLocaleDateString('en-IN',{dateStyle:'medium'}):'DOJ confirmed'});
-  if(c.stage==='Offer Dropped')
+  if(c.stage==='Offer Declined')
     events.push({event:'❌ Offer Dropped by Candidate',color:'danger',time:'Candidate withdrew from offer'});
   events.push({event:r.action.label+' — AI Recommended Action',color:'cyan',time:'Action required: Now'});
   return events;
@@ -3229,7 +3234,7 @@ function renderManagerDashboard(){
       {label:'Added This Week',value:newThisWeek,icon:'📥',color:'var(--accent)'},
       {label:'High Risk',value:highCount,icon:'⚠️',color:'var(--danger2)'},
       {label:'Critical Escalations',value:critCount,icon:'🚨',color:'var(--warning)'},
-      {label:'Confirmed Joiners',value:confirmed,icon:'✅',color:'var(--success)'},
+      {label:'Joined',value:confirmed,icon:'✅',color:'var(--success)'},
       {label:'Unread Updates',value:unreadNotifs,icon:'🔔',color:'var(--accent2)'},
     ];
     mgrGrid.style.gridTemplateColumns='repeat(6,1fr)';
@@ -3352,7 +3357,7 @@ function buildWeeklyReport(){
   r+=`Prepared For     : ${currentUser?currentUser.name:'Hiring Manager'}\n`;
   r+=`Period           : ${weekAgo.toLocaleDateString('en-IN')} — ${now.toLocaleDateString('en-IN')}\n\n`;
   r+=`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nPIPELINE SUMMARY\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-  r+=`Total Candidates       : ${total}\nAdded This Week        : ${newThisWeek}\nHigh Risk Candidates   : ${high}\nCritical Escalations   : ${crit}\nConfirmed Joiners      : ${confirmed}\nAvg Join Probability   : ${avgJoin}%\nActive Recruiters      : ${stats.length}\n\n`;
+  r+=`Total Candidates       : ${total}\nAdded This Week        : ${newThisWeek}\nHigh Risk Candidates   : ${high}\nCritical Escalations   : ${crit}\nJoined                 : ${confirmed}\nAvg Join Probability   : ${avgJoin}%\nActive Recruiters      : ${stats.length}\n\n`;
   r+=`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nRECRUITER PERFORMANCE BREAKDOWN\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
   stats.forEach((s,i)=>{
     const status=s.perfScore>=70?'✅ On Track':s.perfScore>=45?'⚠️  Needs Attention':'🔴 At Risk';
