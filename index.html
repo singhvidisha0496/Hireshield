@@ -1765,7 +1765,7 @@ function calcRisk(c){
    STATS CARDS
 ====================================================== */
 function renderStats(){
-  const high=candidates.filter(c=>calcRisk(c).riskLevel==='High').length;
+  const high=candidates.filter(c=>c.stage!=='Joined'&&c.stage!=='Offer Declined'&&calcRisk(c).riskLevel==='High').length;
   const needFollowup=candidates.filter(c=>{
     if(c.stage==='Joined'||c.stage==='Offer Declined')return false;
     const last=c.lastContacted?new Date(c.lastContacted):null;
@@ -2113,7 +2113,7 @@ function renderAnalytics(){
   const grid=document.getElementById('analytics-grid');
   if(!grid)return;
   const total=candidates.length||1;
-  const high=candidates.filter(c=>calcRisk(c).riskLevel==='High').length;
+  const high=candidates.filter(c=>c.stage!=='Joined'&&c.stage!=='Offer Declined'&&calcRisk(c).riskLevel==='High').length;
   const confirmed=candidates.filter(c=>c.stage==='Joined').length;
   const avgProb=candidates.length?Math.round(candidates.reduce((s,c)=>s+calcRisk(c).joinProb,0)/candidates.length):0;
   const hiringHealth=Math.max(10,100-Math.round(high/total*100));
@@ -2152,7 +2152,7 @@ function renderHeatmap(){
     if(!recruiterMap[r])recruiterMap[r]={name:r,high:0,total:0,escCount:0};
     recruiterMap[r].total++;
     const risk=calcRisk(c);
-    if(risk.riskLevel==='High')recruiterMap[r].high++;
+    if(c.stage!=='Joined'&&c.stage!=='Offer Declined'&&risk.riskLevel==='High')recruiterMap[r].high++;
     if(risk.escalation==='Critical')recruiterMap[r].escCount++;
   });
 
@@ -2183,7 +2183,7 @@ function renderHealthScore(){
   const area=document.getElementById('health-score-area');
   if(!area)return;
   const total=candidates.length||1;
-  const high=candidates.filter(c=>calcRisk(c).riskLevel==='High').length;
+  const high=candidates.filter(c=>c.stage!=='Joined'&&c.stage!=='Offer Declined'&&calcRisk(c).riskLevel==='High').length;
   const score=Math.max(10,100-Math.round(high/total*80));
   const r=55,cx=60,cy=60,circ=2*Math.PI*r,dashArr=circ*score/100;
   const color=score>=70?'var(--success)':score>=45?'var(--warning)':'var(--danger)';
@@ -3347,7 +3347,7 @@ function buildWeeklyReport(){
   const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
   const stats=getRecruiterStats();
   const total=candidates.length;
-  const high=candidates.filter(c=>calcRisk(c).riskLevel==='High').length;
+  const high=candidates.filter(c=>c.stage!=='Joined'&&c.stage!=='Offer Declined'&&calcRisk(c).riskLevel==='High').length;
   const crit=candidates.filter(c=>calcRisk(c).escalation==='Critical').length;
   const confirmed=candidates.filter(c=>c.stage==='Joined').length;
   const newThisWeek=candidates.filter(c=>c.addedAt&&new Date(c.addedAt)>=weekAgo).length;
