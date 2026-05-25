@@ -773,7 +773,7 @@ textarea.edit-input{resize:vertical;min-height:65px}
             <div class="form-field">
               <label>Offer Stage</label>
               <select id="f-stage" class="field-input" style="background:#fff;color:#111827;border:1px solid #d1d5db">
-
+                <option value="" disabled selected style="color:#9ca3af">Select stage...</option>
                 <option value="Offer Released">Offer Released</option>
                 <option value="Offer Accepted">Offer Accepted</option>
                 <option value="Documents Pending">Documents Pending</option>
@@ -915,9 +915,6 @@ textarea.edit-input{resize:vertical;min-height:65px}
             <span class="search-icon">🔍</span>
             <input type="text" class="filter-input" placeholder="Search candidates…" id="search-input" oninput="renderTable()">
           </div>
-          <select class="filter-input" id="filter-recruiter" onchange="renderTable()">
-            <option value="">All Recruiters</option>
-          </select>
           <select class="filter-input" id="filter-stage" onchange="renderTable()">
             <option value="">All Stages</option>
 
@@ -1960,7 +1957,7 @@ async function addCandidate(){
   queueManagerNotification({type:'new_candidate',recruiter:currentUser.name,candidateName:name,role:newRow.role,stage:newRow.stage,ts:new Date().toISOString(),read:false});
   sendManagerUpdateEmail(c);
   ['f-name','f-phone','f-role','f-last','f-doj','f-notes','f-current-ctc','f-fixed','f-variable','f-joining-bonus','f-retention'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('f-stage').value='Offer Released';
+  document.getElementById('f-stage').value='';
   resetORA();
   renderAll();
   toast(`${name} added to intelligence pipeline.`,'success');
