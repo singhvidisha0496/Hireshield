@@ -1266,6 +1266,7 @@ textarea.edit-input{resize:vertical;min-height:65px}
       <div class="edit-grid">
         <div class="edit-field"><label>Candidate Name *</label><input type="text" id="e-name" class="edit-input" placeholder="Full name"></div>
         <div class="edit-field"><label>Phone Number</label><input type="text" id="e-phone" class="edit-input" placeholder="+91 xxxxxxxx"></div>
+        <div class="edit-field"><label>Email ID</label><input type="email" id="e-email" class="edit-input" placeholder="candidate@email.com"></div>
         <div class="edit-field"><label>Role Applied</label><input type="text" id="e-role" class="edit-input" placeholder="e.g. Senior SDE"></div>
         <div class="edit-field"><label>Recruiter Name</label><input type="text" id="e-recruiter" class="edit-input" placeholder="Recruiter"></div>
         <div class="edit-field"><label>Offer Stage</label>
@@ -1280,6 +1281,8 @@ textarea.edit-input{resize:vertical;min-height:65px}
         </div>
         <div class="edit-field"><label>Last Contacted</label><input type="date" id="e-last" class="edit-input"></div>
         <div class="edit-field"><label>Joining Date (DOJ)</label><input type="date" id="e-doj" class="edit-input"></div>
+        <div class="edit-field"><label>Offered Date</label><input type="date" id="e-offered-date" class="edit-input"></div>
+        <div class="edit-field"><label>Date of Birth 🎂</label><input type="date" id="e-dob" class="edit-input"></div>
         <div class="edit-field"><label>Current CTC (₹ LPA)</label><input type="number" id="e-current-ctc" class="edit-input" placeholder="e.g. 12.5" step="0.1"></div>
         <div class="edit-field"><label>Fixed CTC (₹ LPA)</label><input type="number" id="e-fixed" class="edit-input" placeholder="Fixed component" step="0.1"></div>
         <div class="edit-field"><label>Variable CTC (₹ LPA)</label><input type="number" id="e-variable" class="edit-input" placeholder="Variable component" step="0.1"></div>
@@ -1449,35 +1452,38 @@ function mapToDB(c){
 async function saveData(){ /* no-op: saves happen per operation */ }
 
 /* ======================================================
-   BIRTHDAY WISH AUTO-SENDER
+   BIRTHDAY WISH AUTO-SENDER + NOTIFICATIONS
 ====================================================== */
-function checkAndSendBirthdayWishes(){
+function getBirthdayStatus(c){
+  if(!c.dob)return null;
   const today=new Date();
+  const dob=new Date(c.dob);
+  const dobMM=dob.getMonth()+1;
+  const dobDD=dob.getDate();
   const todayMM=today.getMonth()+1;
   const todayDD=today.getDate();
 
+  // Days until birthday this year
+  const thisYearBday=new Date(today.getFullYear(),dob.getMonth(),dob.getDate());
+  if(thisYearBday<today)thisYearBday.setFullYear(today.getFullYear()+1);
+  const daysUntil=Math.round((thisYearBday-today)/(1000*60*60*24));
+
+  const isToday=(dobMM===todayMM&&dobDD===todayDD);
+  const sentKey=`bday_sent_${c.id}_${today.getFullYear()}`;
+  const alreadySent=!!localStorage.getItem(sentKey);
+
+  return{isToday, daysUntil, alreadySent};
+}
+
+function checkAndSendBirthdayWishes(){
+  const today=new Date();
   candidates.forEach(c=>{
-    // Only for open cases with email and DOB
     if(!c.email||!c.dob)return;
     if(c.stage==='Joined'||c.stage==='Offer Declined')return;
-
-    // Check if DOJ is in future
-    if(c.doj){
-      const doj=new Date(c.doj);
-      if(doj<today)return; // DOJ already passed
-    }
-
-    // Check if today is the candidate's birthday
-    const dob=new Date(c.dob);
-    const dobMM=dob.getMonth()+1;
-    const dobDD=dob.getDate();
-    if(dobMM!==todayMM||dobDD!==todayDD)return;
-
-    // Check if we already sent today (localStorage guard)
-    const sentKey=`bday_sent_${c.id}_${today.getFullYear()}`;
-    if(localStorage.getItem(sentKey))return;
-
-    // Send the birthday email via EmailJS
+    const s=getBirthdayStatus(c);
+    if(!s||!s.isToday||s.alreadySent)return;
+    // Check DOJ is in future
+    if(c.doj&&new Date(c.doj)<today)return;
     const firstName=c.name.split(' ')[0];
     const subject=`🎂 Happy Birthday, ${firstName}! — HireShield AI`;
     const body=`Dear ${c.name},
@@ -1494,39 +1500,45 @@ Once again, Happy Birthday! 🎈
 
 Warm regards,
 ${currentUser.name}
-${currentUser.role==='manager'?'Manager':'Recruiter'} — Netcracker Technology
+Netcracker Technology
 (Sent via HireShield AI)`;
 
     emailjs.send('service_1wgqc2v','template_cpp0ywb',{
-      to_email: c.email,
-      to_name: c.name,
-      from_name: currentUser.name,
-      subject,
-      message: body
+      to_email:c.email, to_name:c.name, from_name:currentUser.name, subject, message:body
     }).then(()=>{
+      const sentKey=`bday_sent_${c.id}_${today.getFullYear()}`;
       localStorage.setItem(sentKey,'1');
       toast(`🎂 Birthday wish sent to ${c.name}!`,'success',5000);
       logActivity({type:'birthday',recruiter:currentUser.name,
         message:`🎂 Birthday wish sent to <strong>${c.name}</strong>`,
         ts:new Date().toISOString()});
-    }).catch(err=>{
-      console.error('Birthday email error:',err);
-    });
+    }).catch(err=>console.error('Birthday email error:',err));
   });
 }
 
-/* ── Also show birthday alert banner if any candidate has birthday today ── */
 function checkBirthdayAlerts(){
   const today=new Date();
   const todayMM=today.getMonth()+1;
   const todayDD=today.getDate();
-  const bdays=candidates.filter(c=>{
+  // Today's birthdays
+  const todayBdays=candidates.filter(c=>{
     if(!c.dob||c.stage==='Joined'||c.stage==='Offer Declined')return false;
     const d=new Date(c.dob);
     return(d.getMonth()+1)===todayMM&&d.getDate()===todayDD;
   });
-  if(bdays.length>0){
-    toast(`🎂 Birthday today: ${bdays.map(c=>c.name).join(', ')} — wish email sent!`,'success',6000);
+  if(todayBdays.length>0){
+    toast(`🎂 Birthday today: ${todayBdays.map(c=>c.name).join(', ')} — wish email sent!`,'success',6000);
+  }
+  // Approaching in 3 days
+  const upcomingBdays=candidates.filter(c=>{
+    if(!c.dob||c.stage==='Joined'||c.stage==='Offer Declined')return false;
+    const s=getBirthdayStatus(c);
+    return s&&s.daysUntil>0&&s.daysUntil<=3;
+  });
+  if(upcomingBdays.length>0){
+    setTimeout(()=>{
+      toast(`🎂 Upcoming birthday in ${upcomingBdays[0].daysUntil} day${upcomingBdays[0].daysUntil>1?'s':''}: ${upcomingBdays.map(c=>c.name).join(', ')}`,'info',6000);
+    },2000);
   }
 }
 function createParticles(){
@@ -1990,7 +2002,7 @@ function renderTableInto(tbodyId,list){
     const probColor=r.joinProb>=70?'var(--success)':r.joinProb>=40?'var(--warning)':'var(--danger)';
     const dojFmt=c.doj?new Date(c.doj).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}):'—';
     return `<tr>
-      <td><div class="candidate-cell"><div class="cand-avatar">${initials}</div><div><div class="cand-name">${esc(c.name)}</div><div style="font-size:.68rem;color:var(--text-muted)">${r.mood}</div></div></div></td>
+      <td><div class="candidate-cell"><div class="cand-avatar">${initials}</div><div><div class="cand-name">${esc(c.name)}${(()=>{const bs=getBirthdayStatus(c);if(!bs)return'';if(bs.isToday)return' <span title="Birthday today! 🎂" style="font-size:.75rem">🎂</span>';if(bs.daysUntil<=3)return` <span title="Birthday in ${bs.daysUntil} day${bs.daysUntil>1?'s':''}!" style="font-size:.72rem;color:#f59e0b">🎁</span>`;return'';})()}</div><div style="font-size:.68rem;color:var(--text-muted)">${r.mood}</div></div></div></td>
       <td style="color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:.75rem">${esc(c.phone||'—')}</td>
       <td style="font-size:.8rem;color:var(--text-muted)">${esc(c.role||'—')}</td>
       <td><span class="stage-badge ${stageCls}">${esc(c.stage)}</span></td>
@@ -2444,7 +2456,44 @@ function openCC(id){
       </div>
     </div>
 
-    <!-- QUESTIONNAIRE SUMMARY ROW -->
+    <!-- CANDIDATE DETAILS ROW -->
+    <div class="cc-section cc-full">
+      <div class="cc-section-title">👤 Candidate Details</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;font-size:.8rem">
+        <div style="padding:.45rem .65rem;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb">
+          <div style="font-size:.65rem;color:#9ca3af;text-transform:uppercase;font-weight:600;margin-bottom:2px">Phone</div>
+          <div style="color:#111827;font-weight:500">${esc(c.phone||'—')}</div>
+        </div>
+        <div style="padding:.45rem .65rem;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb">
+          <div style="font-size:.65rem;color:#9ca3af;text-transform:uppercase;font-weight:600;margin-bottom:2px">Email</div>
+          <div style="color:#1d4ed8;font-weight:500">${c.email?`<a href="mailto:${esc(c.email)}" style="color:#1d4ed8;text-decoration:none">${esc(c.email)}</a>`:'—'}</div>
+        </div>
+        <div style="padding:.45rem .65rem;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb">
+          <div style="font-size:.65rem;color:#9ca3af;text-transform:uppercase;font-weight:600;margin-bottom:2px">Role</div>
+          <div style="color:#111827;font-weight:500">${esc(c.role||'—')}</div>
+        </div>
+        <div style="padding:.45rem .65rem;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb">
+          <div style="font-size:.65rem;color:#9ca3af;text-transform:uppercase;font-weight:600;margin-bottom:2px">Offered Date</div>
+          <div style="color:#111827;font-weight:500">${c.offeredDate?new Date(c.offeredDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):'—'}</div>
+        </div>
+        <div style="padding:.45rem .65rem;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb">
+          <div style="font-size:.65rem;color:#9ca3af;text-transform:uppercase;font-weight:600;margin-bottom:2px">Joining Date (DOJ)</div>
+          <div style="color:#111827;font-weight:500">${c.doj?new Date(c.doj).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):'—'}</div>
+        </div>
+        <div style="padding:.45rem .65rem;background:${(()=>{const bs=getBirthdayStatus(c);return bs&&bs.isToday?'#fef9c3':bs&&bs.daysUntil<=3?'#fff7ed':'#f9fafb';})()};border-radius:8px;border:1px solid ${(()=>{const bs=getBirthdayStatus(c);return bs&&bs.isToday?'#fde68a':bs&&bs.daysUntil<=3?'#fed7aa':'#e5e7eb';})()}">
+          <div style="font-size:.65rem;color:#9ca3af;text-transform:uppercase;font-weight:600;margin-bottom:2px">Birthday 🎂</div>
+          <div style="color:#111827;font-weight:500">${(()=>{
+            if(!c.dob)return '—';
+            const bs=getBirthdayStatus(c);
+            const dobStr=new Date(c.dob).toLocaleDateString('en-IN',{day:'2-digit',month:'short'});
+            if(!bs)return dobStr;
+            if(bs.isToday)return `🎂 Today! ${bs.alreadySent?'<span style="color:#16a34a;font-size:.7rem">✓ Wish sent</span>':'<span style="color:#f59e0b;font-size:.7rem">Sending...</span>'}`;
+            if(bs.daysUntil<=3)return `🎁 In ${bs.daysUntil} day${bs.daysUntil>1?'s':''} (${dobStr})`;
+            return dobStr;
+          })()}</div>
+        </div>
+      </div>
+    </div>
     ${c.followup ? `
     <div class="cc-section cc-full">
       <div class="cc-section-title" style="justify-content:space-between">
@@ -3100,11 +3149,14 @@ function openEditModal(id){
   editingCandidateId=id;
   document.getElementById('e-name').value=c.name||'';
   document.getElementById('e-phone').value=c.phone||'';
+  document.getElementById('e-email').value=c.email||'';
   document.getElementById('e-role').value=c.role||'';
   document.getElementById('e-recruiter').value=c.recruiter||'';
   document.getElementById('e-stage').value=c.stage||'Offer Released';
   document.getElementById('e-last').value=c.lastContacted||'';
   document.getElementById('e-doj').value=c.doj||'';
+  document.getElementById('e-offered-date').value=c.offeredDate||'';
+  document.getElementById('e-dob').value=c.dob||'';
   document.getElementById('e-notes').value=c.notes||'';
   // CTC fields
   const fup=c.followup||{};
@@ -3149,18 +3201,21 @@ async function saveEditCandidate(){
   const updates={
     name,
     phone:document.getElementById('e-phone').value.trim()||null,
+    email:document.getElementById('e-email').value.trim()||null,
     role:document.getElementById('e-role').value.trim()||null,
     recruiter:document.getElementById('e-recruiter').value.trim()||null,
     stage:document.getElementById('e-stage').value,
     last_contacted:document.getElementById('e-last').value||null,
     doj:document.getElementById('e-doj').value||null,
+    offered_date:document.getElementById('e-offered-date').value||null,
+    dob:document.getElementById('e-dob').value||null,
     notes:document.getElementById('e-notes').value.trim()||null,
     followup,
     updated_at:new Date().toISOString()
   };
   const {error}=await getSupabase().from('candidates').update(updates).eq('id',editingCandidateId);
   if(error){toast('Error saving: '+error.message,'error');return;}
-  candidates[idx]={...candidates[idx],...mapFromDB({...candidates[idx],...updates,id:editingCandidateId,last_contacted:updates.last_contacted,doj:updates.doj,added_at:candidates[idx].addedAt,followup})};
+  candidates[idx]={...candidates[idx],...mapFromDB({...candidates[idx],...updates,id:editingCandidateId,last_contacted:updates.last_contacted,doj:updates.doj,offered_date:updates.offered_date,dob:updates.dob,email:updates.email,added_at:candidates[idx].addedAt,followup})};
   renderAll();
   logActivity({type:'update',recruiter:currentUser?currentUser.name:'Recruiter',message:`Updated candidate <strong>${name}</strong>`,ts:new Date().toISOString()});
   toast(`${name} updated successfully. AI risk recalculated.`,'success');
