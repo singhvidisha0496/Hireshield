@@ -767,6 +767,10 @@ textarea.edit-input{resize:vertical;min-height:65px}
               <input type="text" id="f-phone" class="field-input" placeholder="+91 xxxxxxxx">
             </div>
             <div class="form-field">
+              <label>Email ID</label>
+              <input type="email" id="f-email" class="field-input" placeholder="candidate@email.com">
+            </div>
+            <div class="form-field">
               <label>Role Applied</label>
               <input type="text" id="f-role" class="field-input" placeholder="e.g. Senior SDE">
             </div>
@@ -788,6 +792,14 @@ textarea.edit-input{resize:vertical;min-height:65px}
             <div class="form-field">
               <label>Joining Date (DOJ)</label>
               <input type="date" id="f-doj" class="field-input">
+            </div>
+            <div class="form-field">
+              <label>Offered Date</label>
+              <input type="date" id="f-offered-date" class="field-input">
+            </div>
+            <div class="form-field">
+              <label>Date of Birth 🎂</label>
+              <input type="date" id="f-dob" class="field-input">
             </div>
             <!-- CTC Section -->
             <div class="form-field">
@@ -1387,6 +1399,8 @@ async function loadCandidates(){
   }
   candidates = rows.map(mapFromDB);
   buildActivityFromCandidates();
+  checkAndSendBirthdayWishes();
+  checkBirthdayAlerts();
   renderAll();
 }
 
@@ -1396,11 +1410,14 @@ function mapFromDB(row){
     id: row.id,
     name: row.name,
     phone: row.phone||'',
+    email: row.email||'',
     role: row.role||'',
     recruiter: row.recruiter||'',
     stage: row.stage||'Offer Released',
     lastContacted: row.last_contacted||'',
     doj: row.doj||'',
+    offeredDate: row.offered_date||'',
+    dob: row.dob||'',
     notes: row.notes||'',
     followup: row.followup||null,
     addedAt: row.added_at||new Date().toISOString(),
@@ -1416,11 +1433,14 @@ function mapToDB(c){
     owner_name: currentUser.name,
     name: c.name,
     phone: c.phone||null,
+    email: c.email||null,
     role: c.role||null,
     recruiter: c.recruiter||null,
     stage: c.stage||'Offer Released',
     last_contacted: c.lastContacted||null,
     doj: c.doj||null,
+    offered_date: c.offeredDate||null,
+    dob: c.dob||null,
     notes: c.notes||null,
     followup: c.followup||null
   };
@@ -1429,8 +1449,86 @@ function mapToDB(c){
 async function saveData(){ /* no-op: saves happen per operation */ }
 
 /* ======================================================
-   PARTICLES
+   BIRTHDAY WISH AUTO-SENDER
 ====================================================== */
+function checkAndSendBirthdayWishes(){
+  const today=new Date();
+  const todayMM=today.getMonth()+1;
+  const todayDD=today.getDate();
+
+  candidates.forEach(c=>{
+    // Only for open cases with email and DOB
+    if(!c.email||!c.dob)return;
+    if(c.stage==='Joined'||c.stage==='Offer Declined')return;
+
+    // Check if DOJ is in future
+    if(c.doj){
+      const doj=new Date(c.doj);
+      if(doj<today)return; // DOJ already passed
+    }
+
+    // Check if today is the candidate's birthday
+    const dob=new Date(c.dob);
+    const dobMM=dob.getMonth()+1;
+    const dobDD=dob.getDate();
+    if(dobMM!==todayMM||dobDD!==todayDD)return;
+
+    // Check if we already sent today (localStorage guard)
+    const sentKey=`bday_sent_${c.id}_${today.getFullYear()}`;
+    if(localStorage.getItem(sentKey))return;
+
+    // Send the birthday email via EmailJS
+    const firstName=c.name.split(' ')[0];
+    const subject=`🎂 Happy Birthday, ${firstName}! — HireShield AI`;
+    const body=`Dear ${c.name},
+
+🎉 Wishing you a very Happy Birthday! 🎂🥳
+
+On this special day, we want you to know how thrilled we are to have you joining our team${c.doj?` on ${new Date(c.doj).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}`:' soon'}. Your journey with us is about to begin, and we couldn't be more excited!
+
+May this birthday bring you all the joy, happiness, and success you deserve. Here's to new beginnings, exciting challenges, and wonderful memories ahead! 🌟
+
+We look forward to celebrating many more milestones with you.
+
+Once again, Happy Birthday! 🎈
+
+Warm regards,
+${currentUser.name}
+${currentUser.role==='manager'?'Manager':'Recruiter'} — Netcracker Technology
+(Sent via HireShield AI)`;
+
+    emailjs.send('service_1wgqc2v','template_cpp0ywb',{
+      to_email: c.email,
+      to_name: c.name,
+      from_name: currentUser.name,
+      subject,
+      message: body
+    }).then(()=>{
+      localStorage.setItem(sentKey,'1');
+      toast(`🎂 Birthday wish sent to ${c.name}!`,'success',5000);
+      logActivity({type:'birthday',recruiter:currentUser.name,
+        message:`🎂 Birthday wish sent to <strong>${c.name}</strong>`,
+        ts:new Date().toISOString()});
+    }).catch(err=>{
+      console.error('Birthday email error:',err);
+    });
+  });
+}
+
+/* ── Also show birthday alert banner if any candidate has birthday today ── */
+function checkBirthdayAlerts(){
+  const today=new Date();
+  const todayMM=today.getMonth()+1;
+  const todayDD=today.getDate();
+  const bdays=candidates.filter(c=>{
+    if(!c.dob||c.stage==='Joined'||c.stage==='Offer Declined')return false;
+    const d=new Date(c.dob);
+    return(d.getMonth()+1)===todayMM&&d.getDate()===todayDD;
+  });
+  if(bdays.length>0){
+    toast(`🎂 Birthday today: ${bdays.map(c=>c.name).join(', ')} — wish email sent!`,'success',6000);
+  }
+}
 function createParticles(){
   const bg = document.getElementById('particles-bg');
   for(let i=0;i<25;i++){
@@ -1658,18 +1756,50 @@ function calcRisk(c){
   // DOJ proximity (needed for inactivity urgency multiplier)
   const daysLeft=doj?Math.floor((doj-today)/(1000*60*60*24)):null;
 
-  // Inactivity — scaled by DOJ urgency
+  // ── INACTIVITY SCORING — smooth linear curve ──
+  // Base points per day bracket, then scaled by DOJ urgency
   if(lastContact){
     const daysSince=Math.floor((today-lastContact)/(1000*60*60*24));
-    const urgency=(daysLeft!==null&&daysLeft<=7)?1.8:(daysLeft!==null&&daysLeft<=14)?1.4:1;
-    if(daysSince===0){riskScore-=5;changes.push({text:'Contacted today — recruiter actively engaged',type:'normal'});}
-    else if(daysSince===1){riskScore+=5;}
-    else if(daysSince<=3){riskScore+=Math.round(10*urgency);reasons.push(`${daysSince} days since last contact`);}
-    else if(daysSince<=7){riskScore+=Math.round(22*urgency);reasons.push(`No contact for ${daysSince} days`);changes.push({text:`Recruiter gap: ${daysSince} days`,type:'warn'});}
-    else{riskScore+=Math.round(40*urgency);reasons.push(`No contact for ${daysSince} days`);changes.push({text:`Recruiter gap critical: ${daysSince} days`,type:'danger'});}
+    // Urgency multiplier: only kicks in when DOJ is very close
+    const urgency=(daysLeft!==null&&daysLeft<=5)?1.6:(daysLeft!==null&&daysLeft<=10)?1.2:1;
+    let inactivityPts=0;
+    if(daysSince===0){
+      inactivityPts=-5; // Active today = positive signal
+      changes.push({text:'Contacted today — recruiter actively engaged',type:'normal'});
+    } else if(daysSince===1){
+      inactivityPts=3; // 1 day — barely anything
+    } else if(daysSince===2){
+      inactivityPts=6; // 2 days — minor flag
+    } else if(daysSince===3){
+      inactivityPts=10; // 3 days — follow-up due
+      reasons.push('3 days since last contact');
+    } else if(daysSince===4){
+      inactivityPts=14; // 4 days — needs attention
+      reasons.push(`${daysSince} days since last contact`);
+      changes.push({text:`${daysSince} days without contact — follow-up needed`,type:'warn'});
+    } else if(daysSince===5){
+      inactivityPts=18; // 5 days — overdue
+      reasons.push(`${daysSince} days since last contact`);
+      changes.push({text:`${daysSince} days without contact — overdue`,type:'warn'});
+    } else if(daysSince<=7){
+      inactivityPts=24; // 6-7 days — serious gap
+      reasons.push(`No contact for ${daysSince} days`);
+      changes.push({text:`Recruiter gap: ${daysSince} days — serious`,type:'warn'});
+    } else if(daysSince<=10){
+      inactivityPts=32; // 8-10 days — critical gap
+      reasons.push(`No contact for ${daysSince} days`);
+      changes.push({text:`Recruiter gap: ${daysSince} days — critical`,type:'danger'});
+    } else {
+      inactivityPts=42; // 11+ days — severe
+      reasons.push(`No contact for ${daysSince} days`);
+      changes.push({text:`Recruiter gap critical: ${daysSince} days`,type:'danger'});
+    }
+    riskScore+=Math.round(inactivityPts*urgency);
   } else {
-    if(daysLeft!==null&&daysLeft<=7){riskScore+=20;reasons.push('No contact date — DOJ approaching');}
-    else{riskScore+=8;}
+    // No contact date recorded
+    if(daysLeft!==null&&daysLeft<=7){riskScore+=18;reasons.push('No contact date — DOJ approaching');}
+    else if(daysLeft!==null&&daysLeft<=14){riskScore+=12;}
+    else{riskScore+=6;}
   }
 
   // Stage risk
@@ -1709,24 +1839,25 @@ function calcRisk(c){
 
   // Questionnaire signals
   if(fup){
-    if(fup.counter_offer==='Yes'){riskScore+=28;reasons.push('Counter offer expected');changes.push({text:'Counter offer expected — high risk',type:'danger'});}
-    if(fup.counter_offer==='Maybe'||fup.counter_offer==='May Be'){riskScore+=14;reasons.push('Counter offer possible');changes.push({text:'Counter offer possible',type:'warn'});}
-    if(fup.competing_offers==='Yes'){riskScore+=22;reasons.push('Active competing offers');changes.push({text:'Competing offers confirmed',type:'danger'});}
-    if(fup.response_speed==='Slow'){riskScore+=16;reasons.push('Slow response speed');changes.push({text:'Response speed: Slow',type:'warn'});}
-    if(fup.enthusiasm==='Low'){riskScore+=22;reasons.push('Low enthusiasm');changes.push({text:'Enthusiasm: Low — risk of drop',type:'danger'});}
-    if(fup.relocation_concern==='Yes'){riskScore+=14;reasons.push('Relocation concern confirmed');changes.push({text:'Relocation concern flagged',type:'warn'});}
-    if(fup.docs_status==='Pending'){riskScore+=12;reasons.push('Documents not submitted');changes.push({text:'Documentation: Pending',type:'danger'});}
-    if(fup.docs_status==='Partial'){riskScore+=6;changes.push({text:'Documentation: Partial',type:'warn'});}
-    if(fup.joining_confidence==='Weak'){riskScore+=25;reasons.push('Recruiter confidence: Weak');changes.push({text:'Recruiter confidence: Weak',type:'danger'});}
-    if(fup.joining_confidence==='Moderate'){riskScore+=8;changes.push({text:'Recruiter confidence: Moderate',type:'warn'});}
-    // Positive reductions
-    if(fup.joining_confidence==='Strong'){riskScore-=18;changes.push({text:'Recruiter confidence: Strong',type:'normal'});}
-    if(fup.enthusiasm==='High'){riskScore-=15;changes.push({text:'Enthusiasm: High — engaged candidate',type:'normal'});}
-    if(fup.response_speed==='Fast'){riskScore-=10;changes.push({text:'Response speed: Fast',type:'normal'});}
-    if(fup.docs_status==='Complete'){riskScore-=12;changes.push({text:'Documents: Complete',type:'normal'});}
-    if(fup.counter_offer==='No'){riskScore-=10;changes.push({text:'No counter offer expected',type:'normal'});}
-    if(fup.competing_offers==='No'){riskScore-=8;changes.push({text:'No competing offers',type:'normal'});}
-    if(fup.relocation_concern==='No'){riskScore-=6;changes.push({text:'No relocation concern',type:'normal'});}
+    // ── NEGATIVE ORA SIGNALS (rebalanced weights) ──
+    if(fup.counter_offer==='Yes'){riskScore+=22;reasons.push('Counter offer expected');changes.push({text:'Counter offer expected — high risk',type:'danger'});}
+    if(fup.counter_offer==='Maybe'||fup.counter_offer==='May Be'){riskScore+=10;reasons.push('Counter offer possible');changes.push({text:'Counter offer possible',type:'warn'});}
+    if(fup.competing_offers==='Yes'){riskScore+=16;reasons.push('Active competing offers');changes.push({text:'Competing offers confirmed',type:'danger'});}
+    if(fup.response_speed==='Slow'){riskScore+=10;reasons.push('Slow response speed');changes.push({text:'Response speed: Slow',type:'warn'});}
+    if(fup.enthusiasm==='Low'){riskScore+=16;reasons.push('Low enthusiasm');changes.push({text:'Enthusiasm: Low — risk of drop',type:'danger'});}
+    if(fup.relocation_concern==='Yes'){riskScore+=8;reasons.push('Relocation concern confirmed');changes.push({text:'Relocation concern flagged',type:'warn'});}
+    if(fup.docs_status==='Pending'){riskScore+=10;reasons.push('Documents not submitted');changes.push({text:'Documentation: Pending',type:'danger'});}
+    if(fup.docs_status==='Partial'){riskScore+=5;changes.push({text:'Documentation: Partial',type:'warn'});}
+    if(fup.joining_confidence==='Weak'){riskScore+=20;reasons.push('Recruiter confidence: Weak');changes.push({text:'Recruiter confidence: Weak',type:'danger'});}
+    if(fup.joining_confidence==='Moderate'){riskScore+=6;changes.push({text:'Recruiter confidence: Moderate',type:'warn'});}
+    // ── POSITIVE ORA SIGNALS (rebalanced weights) ──
+    if(fup.joining_confidence==='Strong'){riskScore-=15;changes.push({text:'Recruiter confidence: Strong',type:'normal'});}
+    if(fup.enthusiasm==='High'){riskScore-=12;changes.push({text:'Enthusiasm: High — engaged candidate',type:'normal'});}
+    if(fup.response_speed==='Fast'){riskScore-=8;changes.push({text:'Response speed: Fast',type:'normal'});}
+    if(fup.docs_status==='Complete'){riskScore-=10;changes.push({text:'Documents: Complete',type:'normal'});}
+    if(fup.counter_offer==='No'){riskScore-=8;changes.push({text:'No counter offer expected',type:'normal'});}
+    if(fup.competing_offers==='No'){riskScore-=6;changes.push({text:'No competing offers',type:'normal'});}
+    if(fup.relocation_concern==='No'){riskScore-=4;changes.push({text:'No relocation concern',type:'normal'});}
     if(fup.recruiter_notes&&fup.recruiter_notes.length>5)changes.push({text:`Recruiter note: "${fup.recruiter_notes.slice(0,80)}${fup.recruiter_notes.length>80?'…':''}"`  ,type:'normal'});
   }
 
@@ -1930,11 +2061,14 @@ async function addCandidate(){
   const newRow={
     owner_id:currentUser.id,owner_name:currentUser.name,name,
     phone:document.getElementById('f-phone').value.trim()||null,
+    email:document.getElementById('f-email').value.trim()||null,
     role:document.getElementById('f-role').value.trim()||null,
     recruiter:currentUser.name,
     stage:document.getElementById('f-stage').value,
     last_contacted:document.getElementById('f-last').value||null,
     doj:document.getElementById('f-doj').value||null,
+    offered_date:document.getElementById('f-offered-date').value||null,
+    dob:document.getElementById('f-dob').value||null,
     notes:document.getElementById('f-notes').value.trim()||null,
     followup:{
       ...(followup||{}),
@@ -1956,7 +2090,7 @@ async function addCandidate(){
   logActivity({type:'add',recruiter:currentUser.name,message:`Added candidate <strong>${name}</strong> — ${newRow.stage}`,ts:new Date().toISOString()});
   queueManagerNotification({type:'new_candidate',recruiter:currentUser.name,candidateName:name,role:newRow.role,stage:newRow.stage,ts:new Date().toISOString(),read:false});
   sendManagerUpdateEmail(c);
-  ['f-name','f-phone','f-role','f-last','f-doj','f-notes','f-current-ctc','f-fixed','f-variable','f-joining-bonus','f-retention'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['f-name','f-phone','f-email','f-role','f-last','f-doj','f-offered-date','f-dob','f-notes','f-current-ctc','f-fixed','f-variable','f-joining-bonus','f-retention'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('f-stage').value='';
   resetORA();
   renderAll();
@@ -2561,7 +2695,9 @@ function openEmailFromCC(type,candidateId){
   };
 
   currentEmailType=type;
-  document.getElementById('em-to').value='';
+  // Auto-fill candidate email if available
+  const _ec=candidateId?candidates.find(x=>x.id===candidateId):null;
+  document.getElementById('em-to').value=(_ec&&_ec.email)?_ec.email:'';
   document.getElementById('em-cc').value='';
   document.getElementById('em-subject').value=subjects[type]||'';
   document.getElementById('em-body-text').value=bodies[type]||'';
